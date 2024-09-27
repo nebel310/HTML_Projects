@@ -1,0 +1,7 @@
+{
+    "planes": [
+        {"id": "PL001", "type": "Cessna 172"},
+        {"id": "PL002", "type": "Piper PA-28"},
+        {"id": "PL003", "type": "Beechcraft Bonanza"}
+    ]
+}

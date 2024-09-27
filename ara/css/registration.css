@@ -1,0 +1,100 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-image: url('https://a.d-cd.net/SYAAAgL13uA-1920.jpg');
+}
+
+ul {
+    margin: 0;
+    padding:  0;
+}
+
+
+
+/* header */
+
+.nav-bar {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: rgb(66, 154, 255);
+}
+
+.logo {
+    width: 80px;
+    margin-right: 20px;
+}
+
+.nav-el {
+    float: left;
+    margin-right: 20px;
+}
+  
+.nav-el a {
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+}
+  
+.nav-el a:hover {
+    background-color: #111;
+}
+
+
+
+
+/* Форма */
+
+main {
+    display: grid;
+    align-self: center;
+    justify-content: center;
+}
+
+.form {
+    background-color: #1E90FF;
+    width: auto;
+    height: auto;
+    margin-top: 150px;
+    padding: 30px;
+    border: solid 2px white;
+}
+
+.pole{
+    width: auto;
+}
+
+.text {
+    color: white;
+    margin-bottom: 3px;
+}
+
+.field {
+    width: 500px;
+    padding: 5px;
+    margin-bottom: 5px;
+}
+
+.password{
+    width: 500px;
+}
+
+.time {
+    margin-bottom: 10px;
+}
+
+.agree {
+    width: auto;
+}
+
+.button {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.submit {
+    padding: 10px;
+}

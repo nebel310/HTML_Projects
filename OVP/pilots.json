@@ -1,0 +1,24 @@
+{
+    "pilots": [
+        {"name": "Иван Иванов", "age": 30, "medical": "да", "vlek": "да", "attestation": "да", "cpl": "да", "rwt": "да", "cfc": "да", "act": "да", "faction": "LSPD"},
+        {"name": "Петр Петров", "age": 32, "medical": "да", "vlek": "да", "attestation": "нет", "cpl": "да", "rwt": "нет", "cfc": "да", "act": "нет", "faction": "LSSD"},
+        {"name": "Алексей Смирнов", "age": 28, "medical": "нет", "vlek": "да", "attestation": "да", "cpl": "нет", "rwt": "да", "cfc": "да", "act": "да", "faction": "ARMY"},
+        {"name": "Дмитрий Козлов", "age": 35, "medical": "да", "vlek": "нет", "attestation": "да", "cpl": "да", "rwt": "да", "cfc": "нет", "act": "да", "faction": "EMS"},
+        {"name": "Сергей Павлов", "age": 29, "medical": "да", "vlek": "да", "attestation": "да", "cpl": "да", "rwt": "да", "cfc": "да", "act": "нет", "faction": "GOV"},
+        {"name": "Виктор Сидоров", "age": 31, "medical": "нет", "vlek": "нет", "attestation": "да", "cpl": "да", "rwt": "нет", "cfc": "да", "act": "да", "faction": "Гражданский"},
+        {"name": "Максим Захаров", "age": 34, "medical": "да", "vlek": "да", "attestation": "нет", "cpl": "нет", "rwt": "да", "cfc": "да", "act": "да", "faction": "LSPD"},
+        {"name": "Николай Попов", "age": 36, "medical": "да", "vlek": "нет", "attestation": "да", "cpl": "да", "rwt": "да", "cfc": "да", "act": "нет", "faction": "LSSD"},
+        {"name": "Андрей Васильев", "age": 33, "medical": "нет", "vlek": "да", "attestation": "да", "cpl": "да", "rwt": "нет", "cfc": "да", "act": "да", "faction": "ARMY"},
+        {"name": "Кирилл Михайлов", "age": 37, "medical": "да", "vlek": "да", "attestation": "да", "cpl": "да", "rwt": "да", "cfc": "да", "act": "да", "faction": "EMS"},
+        {"name": "Леонид Федоров", "age": 40, "medical": "нет", "vlek": "да", "attestation": "да", "cpl": "нет", "rwt": "да", "cfc": "да", "act": "да", "faction": "GOV"},
+        {"name": "Антон Морозов", "age": 26, "medical": "да", "vlek": "нет", "attestation": "да", "cpl": "да", "rwt": "нет", "cfc": "да", "act": "да", "faction": "Гражданский"},
+        {"name": "Игорь Алексеев", "age": 27, "medical": "да", "vlek": "да", "attestation": "нет", "cpl": "да", "rwt": "да", "cfc": "да", "act": "нет", "faction": "LSPD"},
+        {"name": "Владимир Григорьев", "age": 38, "medical": "да", "vlek": "нет", "attestation": "да", "cpl": "да", "rwt": "да", "cfc": "да", "act": "да", "faction": "LSSD"},
+        {"name": "Роман Николаев", "age": 29, "medical": "нет", "vlek": "да", "attestation": "да", "cpl": "нет", "rwt": "да", "cfc": "да", "act": "да", "faction": "ARMY"},
+        {"name": "Артем Соколов", "age": 31, "medical": "да", "vlek": "да", "attestation": "да", "cpl": "да", "rwt": "нет", "cfc": "да", "act": "да", "faction": "EMS"},
+        {"name": "Юрий Орлов", "age": 35, "medical": "да", "vlek": "нет", "attestation": "да", "cpl": "да", "rwt": "да", "cfc": "нет", "act": "да", "faction": "GOV"},
+        {"name": "Олег Беляев", "age": 30, "medical": "нет", "vlek": "да", "attestation": "да", "cpl": "да", "rwt": "нет", "cfc": "да", "act": "да", "faction": "Гражданский"},
+        {"name": "Денис Романов", "age": 34, "medical": "да", "vlek": "да", "attestation": "да", "cpl": "нет", "rwt": "да", "cfc": "да", "act": "да", "faction": "LSPD"},
+        {"name": "Станислав Тарасов", "age": 32, "medical": "да", "vlek": "нет", "attestation": "да", "cpl": "да", "rwt": "да", "cfc": "да", "act": "да", "faction": "LSSD"}
+    ]
+}

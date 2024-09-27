@@ -1,0 +1,207 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f8ff;
+    color: #333;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.dark-theme {
+    background-color: #333;
+    color: #f0f8ff;
+}
+
+header {
+    background-color: #007acc;
+    color: white;
+    padding: 10px;
+    text-align: center;
+    position: relative;
+}
+
+nav ul {
+    display: flex;
+    list-style: none;
+    background-color: #005f99;
+    padding: 0;
+    margin: 0;
+}
+
+nav ul li {
+    flex: 1;
+    text-align: center;
+    padding: 0;
+}
+
+nav ul li a {
+    display: block;
+    width: 100%;
+    padding: 10px 0;
+    color: white;
+    text-decoration: none;
+    transition: background-color 0.3s;
+}
+
+nav ul li a:hover {
+    background-color: #004d80;
+}
+
+main {
+    padding: 20px;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+}
+
+form label {
+    margin-top: 10px;
+}
+
+form input, form textarea {
+    padding: 10px;
+    margin-top: 5px;
+    background-color: white;
+    color: #333;
+    border: 1px solid #ccc;
+    transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+}
+
+.dark-theme form input,
+.dark-theme form textarea {
+    background-color: #555;
+    color: #f0f8ff;
+    border-color: #777;
+}
+
+form button {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #007acc;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+form button:hover {
+    background-color: #005f99;
+}
+
+#toggle-theme {
+    background-color: #007acc;
+    color: white;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+}
+
+#toggle-theme:hover {
+    background-color: #005f99;
+}
+
+#logout {
+    background-color: #007acc;
+    color: white;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+}
+
+#logout:hover {
+    background-color: #005f99;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table, th, td {
+    border: 1px solid #ccc;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+}
+
+.dark-theme table, .dark-theme th, .dark-theme td {
+    border-color: #555;
+}
+
+.login-container, .register-container {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 20px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.dark-theme .login-container, .dark-theme .register-container {
+    background: #444;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.login-header, .register-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.login-button, .register-button {
+    width: 100%;
+    padding: 10px;
+    background-color: #007acc;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    box-sizing: border-box;
+}
+
+.login-button:hover, .register-button:hover {
+    background-color: #005f99;
+}
+
+.login-footer, .register-footer {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.login-footer a, .register-footer a {
+    color: #007acc;
+    text-decoration: none;
+}
+
+.login-footer a:hover, .register-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Specific styles for the registration page */
+.register-page form {
+    align-items: center;
+}
+
+.register-page .form-group {
+    width: 100%;
+    max-width: 400px;
+}
+
+.register-page form input, .register-page form textarea, .register-page form button {
+    width: 100%;
+    max-width: 400px;
+}

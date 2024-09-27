@@ -1,0 +1,63 @@
+html, body {
+    height: 100%;
+}
+
+body {
+    background: linear-gradient(to bottom left, #ff0059, #ffffff);
+    background-repeat: no-repeat;
+    background-size: cover;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+ul {
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    background: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    padding: 45px;
+    border-radius: 10px;
+}
+
+.screen {
+    height: 120px;
+    border-radius: 10px;
+    margin-bottom: 40px;
+    background-color: white;
+}
+
+.numpad {
+    display: grid;
+    grid-template-columns: repeat(4, 80px);
+    gap: 20px;
+}
+
+.num {
+    height: 80px;
+    border-radius: 20px;
+    outline: none;
+    border: none;
+    background-color: white;
+    transition: background-color 0.3s;
+    font-size: 30px;
+    font-weight: bold;
+}
+
+.purple {
+    background-color: #dc1495;
+    color: white;
+}
+
+.num:active {
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.wide {
+    grid-column: span 2;
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/registration.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9" crossorigin="anonymous">
+    <title>Заказ Ремонта</title>
+</head>
+<body>
+    <header class="page-head">
+        <ul class = "nav-bar">
+            <img class = "logo" src="logo.png" alt="MISSING JPG">
+            <li class="nav-el"><a href="index.html">Главная</a></li>
+            <li class="nav-el"><a href="#">Контакты</a></li>
+            <li class="nav-el"><a href="registration.html">Заказать ремонт авто</a></li>
+        </ul>
+    </header>
+
+    <main>
+        <form action="" class="form">
+
+
+            <div class="pole log-in">
+                <label class="text" for="login_field">Логин</label><br>
+                <input class="field login" type="text" id="login_field" name="login" placeholder="login_loginov_228" required><br>
+            </div>
+
+            <div class="pole pass-word">
+                <label class="text" for="password_field">Пароль</label><br>
+                <input class="field password" type="password" id="password_field" name="password" placeholder="5348486" required><br>
+            </div>
+
+            <div class="pole mail">
+                <label class="text" for="email">Электронная почта</label><br>
+                <input class="field email" type="email" id="email" name="email" placeholder="poshel_nahuy@email.com" required><br>
+            </div>
+
+            <div class="pole telephone">
+                <label class="text" for="phone">Номер телефона</label><br>
+                <input class="field phone" type="tel" id="phone" name="phone" placeholder="+7 800 555 35-35"><br>
+            </div>
+
+            <div class="pole time">
+                <label class="text" for="date">Дата ремонта</label><br>
+                <input class="field date" type="date" id="date" name="date"><br>
+            </div>
+
+            <div class="pole agree form-check">
+                <input class="form-check-input agree" type="checkbox" value="" id="flexCheckDefault" required>
+                <label class="form-check-label agree text" for="flexCheckDefault">
+                  Я согласен на получение пизды
+                </label>
+              </div>
+
+            <div class="button">
+                <input class="submit" type="submit" id="submit" value="Отправить">
+            </div>
+          
+
+        </form>
+    </main>
+</body>
+</html>
