@@ -54,6 +54,33 @@ function switchPlayer(direction) {
 prevButton.addEventListener('click', () => switchPlayer('prev'));
 nextButton.addEventListener('click', () => switchPlayer('next'));
 
+// Обработчики для свайпов
+let touchStartX = 0;
+let touchEndX = 0;
+
+document.addEventListener('touchstart', (e) => {
+  touchStartX = e.touches[0].clientX;
+});
+
+document.addEventListener('touchmove', (e) => {
+  touchEndX = e.touches[0].clientX;
+});
+
+document.addEventListener('touchend', () => {
+  const swipeThreshold = 50; // Минимальное расстояние для свайпа
+  const swipeDistance = touchEndX - touchStartX;
+
+  if (Math.abs(swipeDistance) > swipeThreshold) {
+    if (swipeDistance > 0) {
+      // Свайп вправо → переключаем на предыдущий плеер
+      switchPlayer('prev');
+    } else {
+      // Свайп влево → переключаем на следующий плеер
+      switchPlayer('next');
+    }
+  }
+});
+
 // Остальной код для управления плеерами (воспроизведение, громкость и т.д.)
 document.getElementById('dropdown-button').addEventListener('click', () => {
   const dropdownContent = document.getElementById('dropdown-content');
