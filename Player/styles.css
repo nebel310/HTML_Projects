@@ -30,24 +30,12 @@ body {
   margin-bottom: 20px;
 }
 
-input[type="text"] {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 15px;
-  border: none;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  font-size: 14px;
-  outline: none;
-  transition: background 0.3s ease;
+.dropdown {
+  position: relative;
+  display: inline-block;
 }
 
-input[type="text"]:focus {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-button {
+#dropdown-button {
   background: linear-gradient(135deg, #ff6b6b, #ff4757);
   border: none;
   color: #fff;
@@ -62,9 +50,36 @@ button {
   gap: 8px;
 }
 
-button:hover {
+#dropdown-button:hover {
   background: linear-gradient(135deg, #ff4757, #ff6b6b);
   transform: scale(1.05);
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: rgba(30, 30, 30, 0.9);
+  border-radius: 10px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  z-index: 1;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dropdown-item {
+  padding: 12px;
+  cursor: pointer;
+  color: #fff;
+  font-size: 14px;
+  transition: background 0.3s ease;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
 }
 
 .player-controls {
