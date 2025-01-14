@@ -54,19 +54,49 @@ function switchPlayer(direction) {
 prevButton.addEventListener('click', () => switchPlayer('prev'));
 nextButton.addEventListener('click', () => switchPlayer('next'));
 
-// Обработчики для свайпов
+// Переменные для отслеживания свайпов
 let touchStartX = 0;
 let touchEndX = 0;
+let isMouseDown = false;
 
+// Обработчик начала касания (для сенсорных устройств)
 document.addEventListener('touchstart', (e) => {
   touchStartX = e.touches[0].clientX;
 });
 
+// Обработчик движения пальца (для сенсорных устройств)
 document.addEventListener('touchmove', (e) => {
   touchEndX = e.touches[0].clientX;
 });
 
+// Обработчик окончания касания (для сенсорных устройств)
 document.addEventListener('touchend', () => {
+  handleSwipe();
+});
+
+// Обработчик нажатия кнопки мыши
+document.addEventListener('mousedown', (e) => {
+  isMouseDown = true;
+  touchStartX = e.clientX;
+});
+
+// Обработчик движения мыши
+document.addEventListener('mousemove', (e) => {
+  if (isMouseDown) {
+    touchEndX = e.clientX;
+  }
+});
+
+// Обработчик отпускания кнопки мыши
+document.addEventListener('mouseup', () => {
+  if (isMouseDown) {
+    handleSwipe();
+    isMouseDown = false;
+  }
+});
+
+// Функция для обработки свайпа
+function handleSwipe() {
   const swipeThreshold = 50; // Минимальное расстояние для свайпа
   const swipeDistance = touchEndX - touchStartX;
 
@@ -79,7 +109,7 @@ document.addEventListener('touchend', () => {
       switchPlayer('next');
     }
   }
-});
+}
 
 // Остальной код для управления плеерами (воспроизведение, громкость и т.д.)
 document.getElementById('dropdown-button').addEventListener('click', () => {
