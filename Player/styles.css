@@ -149,3 +149,16 @@ body {
   animation: pulse 1.5s infinite;
   background: #ff4757;
 }
+
+
+#now-playing {
+  margin-top: 20px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+}
+
+#station-name {
+  font-weight: bold;
+  color: #ff4757;
+}

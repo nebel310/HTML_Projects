@@ -11,6 +11,8 @@ document.getElementById('dropdown-button').addEventListener('click', () => {
 document.querySelectorAll('.dropdown-item').forEach(item => {
   item.addEventListener('click', () => {
     const streamUrl = item.getAttribute('data-url');
+    const stationName = item.getAttribute('data-name');
+
     if (streamUrl) {
       audio.src = streamUrl;
       audio.play();
@@ -18,6 +20,9 @@ document.querySelectorAll('.dropdown-item').forEach(item => {
       document.getElementById('play-pause').classList.add('playing');
       document.querySelector('.play-icon').style.display = 'none';
       document.querySelector('.pause-icon').style.display = 'block';
+
+      // Обновляем название радиостанции
+      document.getElementById('station-name').textContent = stationName;
     }
     // Закрываем выпадающий список после выбора
     document.getElementById('dropdown-content').style.display = 'none';

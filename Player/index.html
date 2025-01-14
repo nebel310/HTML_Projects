@@ -17,9 +17,9 @@
           Выбрать радио
         </button>
         <div id="dropdown-content" class="dropdown-content">
-          <div class="dropdown-item" data-url="https://icecast-vgtrk.cdnvideo.ru/capitalfmmp3">CapitalFM</div>
-          <div class="dropdown-item" data-url="http://stream.loveradio.ru:8000/love_mpeg_64">Love Radio</div>
-          <div class="dropdown-item" data-url="http://icecast.russkoe.fm:8000/rr-64">Русское Радио</div>
+          <div class="dropdown-item" data-url="https://icecast-vgtrk.cdnvideo.ru/capitalfmmp3" data-name="CapitalFM">CapitalFM</div>
+          <div class="dropdown-item" data-url="http://stream.loveradio.ru:8000/love_mpeg_64" data-name="Love Radio">Love Radio</div>
+          <div class="dropdown-item" data-url="http://icecast.russkoe.fm:8000/rr-64" data-name="Русское Радио">Русское Радио</div>
         </div>
       </div>
     </div>
@@ -39,6 +39,7 @@
         <input type="range" id="volume" min="0" max="1" step="0.01" value="0.5">
       </div>
     </div>
+    <div id="now-playing">Сейчас играет: <span id="station-name">—</span></div>
   </div>
   <script src="script.js"></script>
 </body>
