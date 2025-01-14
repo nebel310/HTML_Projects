@@ -62,7 +62,7 @@ body {
   border-radius: 20px;
   padding: 25px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  width: 350px;
+  width: 400px; /* Увеличиваем ширину плеера */
   text-align: center;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -78,7 +78,7 @@ body {
 }
 
 #dropdown-button,
-#dropdown-button-music {
+#load-music {
   background: linear-gradient(135deg, #ff6b6b, #ff4757);
   border: none;
   color: #fff;
@@ -94,7 +94,7 @@ body {
 }
 
 #dropdown-button:hover,
-#dropdown-button-music:hover {
+#load-music:hover {
   background: linear-gradient(135deg, #ff4757, #ff6b6b);
   transform: scale(1.05);
 }
@@ -208,4 +208,31 @@ body {
 #track-name {
   font-weight: bold;
   color: #ff4757;
+}
+
+/* Новые стили для перемотки */
+.seek-control {
+  margin-top: 20px;
+}
+
+#seek-slider {
+  width: 100%;
+  cursor: pointer;
+  accent-color: #ff4757;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  height: 5px;
+  transition: accent-color 0.3s ease;
+}
+
+#seek-slider:hover {
+  accent-color: #ff6b6b;
+}
+
+.time-display {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
 }
