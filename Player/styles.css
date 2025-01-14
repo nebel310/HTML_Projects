@@ -15,8 +15,36 @@ body {
   overflow: hidden;
 }
 
+.container {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.side-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.side-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
 .radio-container {
   text-align: center;
+  display: none; /* Скрываем все плееры по умолчанию */
+}
+
+.radio-container.active {
+  display: block; /* Показываем активный плеер */
 }
 
 .radio-title {
@@ -49,7 +77,8 @@ body {
   display: inline-block;
 }
 
-#dropdown-button {
+#dropdown-button,
+#dropdown-button-music {
   background: linear-gradient(135deg, #ff6b6b, #ff4757);
   border: none;
   color: #fff;
@@ -64,7 +93,8 @@ body {
   gap: 8px;
 }
 
-#dropdown-button:hover {
+#dropdown-button:hover,
+#dropdown-button-music:hover {
   background: linear-gradient(135deg, #ff4757, #ff6b6b);
   transform: scale(1.05);
 }
@@ -139,7 +169,8 @@ body {
   height: 20px;
 }
 
-#volume {
+#volume,
+#volume-music {
   width: 100px;
   cursor: pointer;
   accent-color: #ff4757;
@@ -149,7 +180,8 @@ body {
   transition: accent-color 0.3s ease;
 }
 
-#volume:hover {
+#volume:hover,
+#volume-music:hover {
   accent-color: #ff6b6b;
 }
 
@@ -164,15 +196,16 @@ body {
   background: #ff4757;
 }
 
-
-#now-playing {
+#now-playing,
+#now-playing-music {
   margin-top: 20px;
   font-size: 14px;
   color: rgba(255, 255, 255, 0.8);
   text-align: center;
 }
 
-#station-name {
+#station-name,
+#track-name {
   font-weight: bold;
   color: #ff4757;
 }

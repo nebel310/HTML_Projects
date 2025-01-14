@@ -1,13 +1,42 @@
 const audio = new Audio();
 let isPlaying = false;
 
-// Открытие/закрытие выпадающего списка
+// Получаем все плееры и кнопки
+const players = document.querySelectorAll('.radio-container');
+const prevButton = document.getElementById('prev-button');
+const nextButton = document.getElementById('next-button');
+
+let currentPlayerIndex = 0;
+
+// Показываем первый плеер по умолчанию
+players[currentPlayerIndex].classList.add('active');
+
+// Функция для переключения плееров
+function switchPlayer(direction) {
+  // Скрываем текущий плеер
+  players[currentPlayerIndex].classList.remove('active');
+
+  // Вычисляем индекс следующего плеера
+  if (direction === 'next') {
+    currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+  } else if (direction === 'prev') {
+    currentPlayerIndex = (currentPlayerIndex - 1 + players.length) % players.length;
+  }
+
+  // Показываем новый плеер
+  players[currentPlayerIndex].classList.add('active');
+}
+
+// Обработчики для кнопок
+prevButton.addEventListener('click', () => switchPlayer('prev'));
+nextButton.addEventListener('click', () => switchPlayer('next'));
+
+// Остальной код для управления плеерами (воспроизведение, громкость и т.д.)
 document.getElementById('dropdown-button').addEventListener('click', () => {
   const dropdownContent = document.getElementById('dropdown-content');
   dropdownContent.style.display = dropdownContent.style.display === 'block' ? 'none' : 'block';
 });
 
-// Выбор радиостанции
 document.querySelectorAll('.dropdown-item').forEach(item => {
   item.addEventListener('click', () => {
     const streamUrl = item.getAttribute('data-url');
@@ -29,7 +58,6 @@ document.querySelectorAll('.dropdown-item').forEach(item => {
   });
 });
 
-// Управление воспроизведением
 document.getElementById('play-pause').addEventListener('click', () => {
   if (isPlaying) {
     audio.pause();
@@ -45,7 +73,6 @@ document.getElementById('play-pause').addEventListener('click', () => {
   isPlaying = !isPlaying;
 });
 
-// Управление громкостью
 document.getElementById('volume').addEventListener('input', (e) => {
   audio.volume = e.target.value;
 });
