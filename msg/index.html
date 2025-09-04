@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Элегантное приветствие</title>
+    <title>Элегантное послание</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Raleway:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -14,42 +17,147 @@
         body {
             background-color: #0a0a0a;
             color: #ffffff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Raleway', sans-serif;
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
+            overflow-x: hidden;
             position: relative;
+            line-height: 1.6;
         }
         
         .container {
-            text-align: center;
-            z-index: 10;
+            max-width: 1200px;
+            margin: 0 auto;
             padding: 2rem;
         }
         
-        .greeting {
-            font-size: 5rem;
-            font-weight: 300;
-            letter-spacing: 0.5rem;
-            margin-bottom: 2rem;
+        header {
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header-content {
+            z-index: 10;
+            padding: 2rem;
             opacity: 0;
             transform: translateY(50px);
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            animation: fadeInUp 2s forwards 0.5s;
+        }
+        
+        .greeting {
+            font-family: 'Playfair Display', serif;
+            font-size: 5rem;
+            font-weight: 500;
+            letter-spacing: 0.3rem;
+            margin-bottom: 1.5rem;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
         }
         
         .subtitle {
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             font-weight: 300;
-            opacity: 0;
-            transform: translateY(30px);
             color: #e0e0e0;
+            margin-bottom: 2rem;
         }
         
         .accent {
             color: #4a76a8;
             font-weight: 400;
+        }
+        
+        .scroll-indicator {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            animation: fadeIn 1s forwards 2s;
+        }
+        
+        .scroll-text {
+            margin-bottom: 10px;
+            font-size: 1rem;
+            color: #a0a0a0;
+        }
+        
+        .scroll-arrow {
+            width: 20px;
+            height: 20px;
+            border-right: 2px solid #4a76a8;
+            border-bottom: 2px solid #4a76a8;
+            transform: rotate(45deg);
+            animation: bounce 2s infinite;
+        }
+        
+        section {
+            padding: 6rem 2rem;
+            opacity: 0;
+            transform: translateY(50px);
+            transition: opacity 1.5s ease, transform 1.5s ease;
+        }
+        
+        section.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.8rem;
+            margin-bottom: 2rem;
+            color: #4a76a8;
+            text-align: center;
+        }
+        
+        .reasons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+        
+        .reason-card {
+            background: rgba(30, 30, 40, 0.6);
+            border-radius: 10px;
+            padding: 2rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        
+        .reason-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .reason-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .reason-number {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #4a76a8;
+            margin-bottom: 1rem;
+        }
+        
+        .reason-title {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #e0e0e0;
+        }
+        
+        .reason-text {
+            color: #b0b0b0;
+            font-size: 1.1rem;
         }
         
         .background-element {
@@ -59,6 +167,15 @@
             z-index: 1;
         }
         
+        footer {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #888;
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(74, 118, 168, 0.2);
+            margin-top: 4rem;
+        }
+        
         @keyframes fadeInUp {
             to {
                 opacity: 1;
@@ -66,36 +183,158 @@
             }
         }
         
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 0.5; }
-            50% { transform: scale(1.05); opacity: 0.7; }
-            100% { transform: scale(1); opacity: 0.5; }
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0) rotate(45deg);
+            }
+            40% {
+                transform: translateY(-10px) rotate(45deg);
+            }
+            60% {
+                transform: translateY(-5px) rotate(45deg);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .greeting {
+                font-size: 3.5rem;
+            }
+            
+            .subtitle {
+                font-size: 1.4rem;
+            }
+            
+            .section-title {
+                font-size: 2.2rem;
+            }
+            
+            .reasons-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 class="greeting">Пошёл нахуй</h1>
-        <p class="subtitle">Добро пожаловать, тебя <span class="accent">послали</span> нахуй</p>
-    </div>
+    <header>
+        <div class="header-content">
+            <h1 class="greeting">Пошёл нахуй</h1>
+            <p class="subtitle">Добро пожаловать, тебя <span class="accent">послали</span> нахуй</p>
+        </div>
+        <div class="scroll-indicator">
+            <div class="scroll-text">листай вниз</div>
+            <div class="scroll-arrow"></div>
+        </div>
+    </header>
+
+    <main>
+        <section id="explanation">
+            <div class="container">
+                <h2 class="section-title">Почему тебя послали нахуй?</h2>
+                <p class="reason-text" style="text-align: center; max-width: 800px; margin: 0 auto; font-size: 1.2rem;">
+                    В современном мире существует множество причин, по которым человека могут вежливо попросить удалиться в известном направлении. Ниже мы рассмотрим наиболее распространенные из этих причин.
+                </p>
+                
+                <div class="reasons-grid">
+                    <div class="reason-card">
+                        <div class="reason-number">01</div>
+                        <h3 class="reason-title">Избыточная навязчивость</h3>
+                        <p class="reason-text">Когда человек не чувствует границ личного пространства и постоянно вмешивается в чужие дела, это может вызывать раздражение и закономерную реакцию.</p>
+                    </div>
+                    
+                    <div class="reason-card">
+                        <div class="reason-number">02</div>
+                        <h3 class="reason-title">Несвоевременные вопросы</h3>
+                        <p class="reason-text">Задавать личные или неуместные вопросы в неподходящее время — верный способ получить вежливый отказ в продолжении общения.</p>
+                    </div>
+                    
+                    <div class="reason-card">
+                        <div class="reason-number">03</div>
+                        <h3 class="reason-title">Излишний негатив</h3>
+                        <p class="reason-text">Постоянное нытье, жалобы и распространение негатива утомляет окружающих и вызывает желание прекратить общение.</p>
+                    </div>
+                    
+                    <div class="reason-card">
+                        <div class="reason-number">04</div>
+                        <h3 class="reason-title">Нарушение социальных норм</h3>
+                        <p class="reason-text">Громкие разговоры в тихих местах, нарушение личных границ и другие формы антисоциального поведения часто приводят к подобной реакции.</p>
+                    </div>
+                    
+                    <div class="reason-card">
+                        <div class="reason-number">05</div>
+                        <h3 class="reason-title">Неуместный юмор</h3>
+                        <p class="reason-text">Шутки на sensitive темы, сарказм в неподходящей ситуации или обидные комментарии под видом юмора могут привести к нежелательным последствиям.</p>
+                    </div>
+                    
+                    <div class="reason-card">
+                        <div class="reason-number">06</div>
+                        <h3 class="reason-title">Чрезмерная критика</h3>
+                        <p class="reason-text">Критиковать всё и вся, не предлагая конструктивных alternatives, — верный способ вызвать раздражение у окружающих.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="conclusion">
+            <div class="container">
+                <h2 class="section-title">Что делать, если тебя послали нахуй?</h2>
+                <div style="max-width: 800px; margin: 0 auto;">
+                    <p class="reason-text" style="margin-bottom: 1.5rem; font-size: 1.2rem;">
+                        Если ты оказался в ситуации, когда тебя откровенно послали, не стоит воспринимать это как трагедию. Воспринимай это как обратную связь — возможно, стоит пересмотреть своё поведение.
+                    </p>
+                    <p class="reason-text" style="margin-bottom: 1.5rem; font-size: 1.2rem;">
+                        Иногда люди посылают других просто потому, что у них плохое настроение или они переживают трудные времена. В таком случае, это говорит больше об отправителе, чем о тебе.
+                    </p>
+                    <p class="reason-text" style="font-size: 1.2rem;">
+                        Помни: то, как люди реагируют на тебя, часто является отражением их собственного внутреннего состояния. Не принимай всё близко к сердцу, но и не игнорируй закономерности, если тебя посылают регулярно.
+                    </p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2023 Элегантное объяснение. Все права защищены.</p>
+            <p>Этот сайт создан в юмористических целях и не предназначен для оскорбления кого-либо.</p>
+        </div>
+    </footer>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Создаем фоновые элементы
             createBackgroundElements();
             
-            // Анимируем появление текста
-            setTimeout(() => {
-                const greeting = document.querySelector('.greeting');
-                const subtitle = document.querySelector('.subtitle');
-                
-                greeting.style.animation = 'fadeInUp 2s forwards';
-                subtitle.style.animation = 'fadeInUp 2s forwards 0.5s';
-            }, 500);
+            // Анимация появления секций при прокрутке
+            const sections = document.querySelectorAll('section');
+            const cards = document.querySelectorAll('.reason-card');
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                    }
+                });
+            }, { threshold: 0.1 });
+            
+            sections.forEach(section => {
+                observer.observe(section);
+            });
+            
+            cards.forEach((card, index) => {
+                // Задаем задержку для каждой карточки
+                card.style.transitionDelay = `${index * 0.2}s`;
+                observer.observe(card);
+            });
             
             function createBackgroundElements() {
                 const body = document.querySelector('body');
-                const elementsCount = 15;
+                const elementsCount = 20;
                 
                 for (let i = 0; i < elementsCount; i++) {
                     const element = document.createElement('div');
@@ -112,12 +351,27 @@
                     element.style.top = `${posY}px`;
                     
                     // Анимация
-                    element.style.animation = `pulse ${Math.random() * 10 + 10}s infinite ease-in-out`;
+                    const duration = Math.random() * 10 + 10;
+                    element.style.animation = `pulse ${duration}s infinite ease-in-out`;
                     element.style.animationDelay = `${Math.random() * 5}s`;
                     
                     body.appendChild(element);
                 }
             }
+            
+            // Плавная прокрутка для якорей
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
         });
     </script>
 </body>
