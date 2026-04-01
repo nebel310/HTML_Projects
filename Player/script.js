@@ -186,3 +186,160 @@ function formatTime(time) {
   const seconds = Math.floor(time % 60);
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
+
+// ========== Фоновая анимация ==========
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+
+let circles = [];
+let animationId = null;
+let isAnimating = false;
+
+// Параметры кругов
+const CIRCLE_COUNT = 40;
+const MAX_RADIUS = 60;
+const MIN_RADIUS = 20;
+const BASE_OPACITY = 0.08;   // очень слабые, еле заметные
+const VELOCITY_DAMP = 0.98;
+const RANDOM_FORCE = 0.2;
+
+// Инициализация кругов с учётом размеров canvas
+function initCircles() {
+  const w = canvas.width;
+  const h = canvas.height;
+  circles = [];
+  for (let i = 0; i < CIRCLE_COUNT; i++) {
+    circles.push({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.5) * 2,
+      radius: MIN_RADIUS + Math.random() * (MAX_RADIUS - MIN_RADIUS),
+      opacity: BASE_OPACITY + Math.random() * 0.05
+    });
+  }
+}
+
+// Обновление позиций с хаотичным движением
+function updateCircles() {
+  const w = canvas.width;
+  const h = canvas.height;
+  for (let c of circles) {
+    // Добавляем случайное ускорение для хаотичности
+    c.vx += (Math.random() - 0.5) * RANDOM_FORCE;
+    c.vy += (Math.random() - 0.5) * RANDOM_FORCE;
+    // Небольшое трение, чтобы движение не стало слишком быстрым
+    c.vx *= VELOCITY_DAMP;
+    c.vy *= VELOCITY_DAMP;
+    // Обновляем позицию
+    c.x += c.vx;
+    c.y += c.vy;
+    // Отражение от границ с мягким возвратом
+    if (c.x < 0) {
+      c.x = 0;
+      c.vx = -c.vx * 0.8;
+    }
+    if (c.x > w) {
+      c.x = w;
+      c.vx = -c.vx * 0.8;
+    }
+    if (c.y < 0) {
+      c.y = 0;
+      c.vy = -c.vy * 0.8;
+    }
+    if (c.y > h) {
+      c.y = h;
+      c.vy = -c.vy * 0.8;
+    }
+    // Периодически слегка смещаем направление для разнообразия
+    if (Math.random() < 0.02) {
+      c.vx += (Math.random() - 0.5) * 0.5;
+      c.vy += (Math.random() - 0.5) * 0.5;
+    }
+  }
+}
+
+// Отрисовка кругов (очень прозрачные, без резких контуров)
+function drawCircles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let c of circles) {
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
+    // Используем радиальный градиент для мягкости
+    const grad = ctx.createRadialGradient(c.x, c.y, c.radius * 0.2, c.x, c.y, c.radius);
+    grad.addColorStop(0, `rgba(255, 255, 255, ${c.opacity * 0.8})`);
+    grad.addColorStop(1, `rgba(255, 200, 200, ${c.opacity * 0.3})`);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+}
+
+// Анимационный цикл
+function animateBackground() {
+  if (!isAnimating) return;
+  updateCircles();
+  drawCircles();
+  animationId = requestAnimationFrame(animateBackground);
+}
+
+// Запуск анимации
+function startBackgroundAnimation() {
+  if (isAnimating) return;
+  isAnimating = true;
+  animateBackground();
+}
+
+// Остановка анимации и очистка canvas
+function stopBackgroundAnimation() {
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+  isAnimating = false;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+// Слушатели событий audio для управления фоновой анимацией
+function onAudioPlay() {
+  startBackgroundAnimation();
+}
+
+function onAudioPause() {
+  stopBackgroundAnimation();
+}
+
+function onAudioEnded() {
+  stopBackgroundAnimation();
+}
+
+audio.addEventListener('play', onAudioPlay);
+audio.addEventListener('pause', onAudioPause);
+audio.addEventListener('ended', onAudioEnded);
+
+// Адаптация canvas под размер окна
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  initCircles();
+  if (isAnimating) {
+    // перерисовываем с новыми размерами, но анимация продолжается
+    drawCircles();
+  } else {
+    // если анимация неактивна, просто очищаем
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  // если анимация активна, нужно обновить позиции кругов относительно нового размера
+  if (isAnimating) {
+    // не сбрасываем позиции, просто продолжаем, но круги могут оказаться за пределами,
+    // что исправит updateCircles при следующем кадре.
+    // Для плавности можно подкорректировать, но не обязательно.
+  }
+});
+
+// Инициализация
+resizeCanvas();
+// На старте анимация не запущена, так как музыка не играет
