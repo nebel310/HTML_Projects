@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>NEON WAVE | аудиоплеер</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at 20% 30%, #0a0f1e, #03060c);
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* динамический фон canvas */
+    #bg-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+      transition: opacity 1.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+    }
+
+    /* контейнер плеера */
+    .player-container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    /* переключатель режимов */
+    .mode-switch {
+      display: flex;
+      background: rgba(20, 28, 40, 0.6);
+      backdrop-filter: blur(12px);
+      border-radius: 60px;
+      padding: 6px;
+      margin-bottom: 2rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .mode-btn {
+      flex: 1;
+      text-align: center;
+      padding: 12px 0;
+      border-radius: 40px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(4px);
+    }
+
+    .mode-btn.active {
+      background: rgba(255, 70, 100, 0.9);
+      color: white;
+      box-shadow: 0 4px 12px rgba(255, 70, 100, 0.4);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    /* карточка плеера */
+    .player-card {
+      background: rgba(12, 18, 28, 0.65);
+      backdrop-filter: blur(20px);
+      border-radius: 48px;
+      padding: 2rem 1.8rem;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 25px 45px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      transition: all 0.3s;
+    }
+
+    /* радио-секция / музыкальная секция */
+    .player-section {
+      display: none;
+      animation: fadeScale 0.35s ease-out;
+    }
+
+    .player-section.active-section {
+      display: block;
+    }
+
+    @keyframes fadeScale {
+      from {
+        opacity: 0;
+        transform: scale(0.97);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    /* общие стили */
+    .track-info {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .track-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 0.5rem;
+    }
+
+    .track-name {
+      font-size: 1.7rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #fff, #ffb8c6);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      word-break: break-word;
+      line-height: 1.3;
+    }
+
+    /* элементы управления */
+    .controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 2rem;
+      margin: 2rem 0 1.5rem;
+    }
+
+    .ctrl-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: none;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .ctrl-btn:hover {
+      background: rgba(255, 70, 100, 0.5);
+      transform: scale(1.05);
+      border-color: rgba(255, 70, 100, 0.8);
+    }
+
+    .ctrl-btn:active {
+      transform: scale(0.98);
+    }
+
+    .ctrl-btn svg {
+      width: 32px;
+      height: 32px;
+      fill: white;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    }
+
+    .big-play svg {
+      width: 36px;
+      height: 36px;
+    }
+
+    /* слайдер громкости и перемотки */
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 1rem;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 8px 16px;
+      border-radius: 60px;
+    }
+
+    .slider-icon svg {
+      width: 18px;
+      height: 18px;
+      fill: rgba(255,255,255,0.7);
+    }
+
+    input[type="range"] {
+      flex: 1;
+      height: 4px;
+      -webkit-appearance: none;
+      background: rgba(255,255,255,0.2);
+      border-radius: 10px;
+      outline: none;
+    }
+
+    input[type="range"]:focus {
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #ff4664;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 6px #ff4664;
+      border: none;
+    }
+
+    .time-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.6);
+      letter-spacing: 0.5px;
+    }
+
+    /* радио дропдаун */
+    .radio-dropdown {
+      position: relative;
+      margin: 1rem 0;
+    }
+
+    .radio-select-btn {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 60px;
+      padding: 12px 20px;
+      color: white;
+      font-size: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .radio-select-btn:hover {
+      background: rgba(255,70,100,0.3);
+      border-color: #ff4664;
+    }
+
+    .dropdown-list {
+      position: absolute;
+      bottom: 110%;
+      left: 0;
+      right: 0;
+      background: rgba(20, 28, 40, 0.95);
+      backdrop-filter: blur(16px);
+      border-radius: 28px;
+      padding: 0.5rem 0;
+      border: 1px solid rgba(255,255,255,0.2);
+      display: none;
+      z-index: 20;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+
+    .dropdown-list.show {
+      display: block;
+    }
+
+    .dropdown-item {
+      padding: 12px 20px;
+      cursor: pointer;
+      transition: 0.2s;
+      color: #eee;
+      font-weight: 500;
+    }
+
+    .dropdown-item:hover {
+      background: rgba(255,70,100,0.4);
+      padding-left: 28px;
+    }
+
+    /* загрузка файла */
+    .file-upload-area {
+      margin-top: 1rem;
+    }
+
+    .upload-btn {
+      width: 100%;
+      background: rgba(255,70,100,0.2);
+      border: 1px dashed rgba(255,70,100,0.6);
+      border-radius: 60px;
+      padding: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: 0.2s;
+      font-weight: 500;
+      color: #ffb0bb;
+    }
+
+    .upload-btn:hover {
+      background: rgba(255,70,100,0.5);
+      border-color: #ff4664;
+      color: white;
+    }
+
+    /* кнопки переключения между режимами радио/музыка внутри плеера не нужны — они выше */
+    .side-nav {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1.8rem;
+    }
+
+    .switch-mode-internal {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: 0.2s;
+      padding: 6px 12px;
+      border-radius: 30px;
+    }
+
+    .switch-mode-internal:hover {
+      color: #ff4664;
+      background: rgba(255,70,100,0.2);
+    }
+
+    /* адаптив */
+    @media (max-width: 500px) {
+      .player-card {
+        padding: 1.5rem;
+      }
+      .ctrl-btn {
+        width: 54px;
+        height: 54px;
+      }
+      .track-name {
+        font-size: 1.3rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div class="player-container">
+  <div class="mode-switch">
+    <button class="mode-btn active" data-mode="radio">РАДИО</button>
+    <button class="mode-btn" data-mode="music">МУЗЫКА</button>
+  </div>
+
+  <div class="player-card">
+    <!-- радио секция -->
+    <div id="radio-section" class="player-section active-section">
+      <div class="track-info">
+        <div class="track-label">Сейчас в эфире</div>
+        <div class="track-name" id="radio-station-name">—</div>
+      </div>
+
+      <div class="radio-dropdown">
+        <div class="radio-select-btn" id="radio-dropdown-btn">
+          <span>Выбрать радиостанцию</span>
+          <span>▼</span>
+        </div>
+        <div class="dropdown-list" id="radio-dropdown-list">
+          <div class="dropdown-item" data-url="https://icecast-vgtrk.cdnvideo.ru/capitalfmmp3" data-name="Capital FM">Capital FM</div>
+          <div class="dropdown-item" data-url="https://stream2.n340.com/12_love_64_reg_44?type=aac&UID=59EB348C134031A435B49E46BB808FC3" data-name="Love Radio">Love Radio</div>
+          <div class="dropdown-item" data-url="https://rusradio.hostingradio.ru/rusradio96.aacp" data-name="Русское Радио">Русское Радио</div>
+          <div class="dropdown-item" data-url="https://retro.hostingradio.ru:8043/retro256.mp3" data-name="Ретро FM">Ретро FM</div>
+          <div class="dropdown-item" data-url="https://live.kissfm.ro/kissfm.aacp" data-name="Kiss FM">Kiss FM</div>
+          <div class="dropdown-item" data-url="https://stream.newradio.ru/novoe96.aacp" data-name="Новое Радио">Новое Радио</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="radio-play-pause" class="ctrl-btn big-play">
+          <svg viewBox="0 0 24 24" class="play-icon-radio"><path d="M8 5v14l11-7z"/></svg>
+          <svg viewBox="0 0 24 24" class="pause-icon-radio" style="display: none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-icon"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></div>
+        <input type="range" id="radio-volume" min="0" max="1" step="0.01" value="0.6">
+      </div>
+    </div>
+
+    <!-- музыкальная секция -->
+    <div id="music-section" class="player-section">
+      <div class="track-info">
+        <div class="track-label">Сейчас играет</div>
+        <div class="track-name" id="music-track-name">—</div>
+      </div>
+
+      <div class="file-upload-area">
+        <div class="upload-btn" id="load-music-btn">📂 Загрузить аудиофайл</div>
+        <input type="file" id="music-file-input" accept="audio/*" style="display: none;">
+      </div>
+
+      <div class="controls">
+        <button id="music-prev" class="ctrl-btn">
+          <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+        </button>
+        <button id="music-play-pause" class="ctrl-btn big-play">
+          <svg viewBox="0 0 24 24" class="play-icon-music"><path d="M8 5v14l11-7z"/></svg>
+          <svg viewBox="0 0 24 24" class="pause-icon-music" style="display: none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+        <button id="music-next" class="ctrl-btn">
+          <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+        </button>
+      </div>
+
+      <div class="slider-group" style="margin-top: 0.5rem;">
+        <input type="range" id="music-seek" min="0" max="100" value="0">
+      </div>
+      <div class="time-row">
+        <span id="current-time">0:00</span>
+        <span id="total-time">0:00</span>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-icon"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg></div>
+        <input type="range" id="music-volume" min="0" max="1" step="0.01" value="0.6">
+      </div>
+    </div>
+
+    <!-- внутренние кнопки переключения (на всякий случай) -->
+    <div class="side-nav">
+      <button id="switch-to-radio" class="switch-mode-internal">Радио</button>
+      <button id="switch-to-music" class="switch-mode-internal">Музыка</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ======================== АУДИО ========================
+  const audio = new Audio();
+  let isPlaying = false;
+  let currentMode = 'radio';   // radio or music
+  let currentRadioStation = null;
+  let currentMusicFile = null;
+
+  // Элементы
+  const radioSection = document.getElementById('radio-section');
+  const musicSection = document.getElementById('music-section');
+  const modeBtns = document.querySelectorAll('.mode-btn');
+  const switchToRadio = document.getElementById('switch-to-radio');
+  const switchToMusic = document.getElementById('switch-to-music');
+
+  // радио элементы
+  const radioPlayBtn = document.getElementById('radio-play-pause');
+  const radioPlayIcon = radioPlayBtn.querySelector('.play-icon-radio');
+  const radioPauseIcon = radioPlayBtn.querySelector('.pause-icon-radio');
+  const radioStationNameSpan = document.getElementById('radio-station-name');
+  const radioVolume = document.getElementById('radio-volume');
+  const radioDropdownBtn = document.getElementById('radio-dropdown-btn');
+  const radioDropdownList = document.getElementById('radio-dropdown-list');
+
+  // музыка элементы
+  const musicPlayBtn = document.getElementById('music-play-pause');
+  const musicPlayIcon = musicPlayBtn.querySelector('.play-icon-music');
+  const musicPauseIcon = musicPlayBtn.querySelector('.pause-icon-music');
+  const musicTrackNameSpan = document.getElementById('music-track-name');
+  const musicVolume = document.getElementById('music-volume');
+  const musicSeek = document.getElementById('music-seek');
+  const currentTimeSpan = document.getElementById('current-time');
+  const totalTimeSpan = document.getElementById('total-time');
+  const musicPrev = document.getElementById('music-prev');
+  const musicNext = document.getElementById('music-next');
+  const loadMusicBtn = document.getElementById('load-music-btn');
+  const musicFileInput = document.getElementById('music-file-input');
+
+  // ========== Управление режимами ==========
+  function setMode(mode) {
+    currentMode = mode;
+    if (mode === 'radio') {
+      radioSection.classList.add('active-section');
+      musicSection.classList.remove('active-section');
+      modeBtns[0].classList.add('active');
+      modeBtns[1].classList.remove('active');
+      // если музыка играла — останавливаем и переключаем на радио
+      if (isPlaying && audio.src && !audio.src.includes('icecast') && !audio.src.includes('stream2') && !audio.src.includes('rusradio') && !audio.src.includes('retro') && !audio.src.includes('kissfm') && !audio.src.includes('newradio')) {
+        audio.pause();
+        isPlaying = false;
+        updatePlayButtons(false);
+      }
+      // если радио не выбрано, но был выбран ранее — подхватим
+      if (!audio.src || audio.src === '' || audio.src.startsWith('blob:')) {
+        // ничего не играет
+      } else {
+        if (audio.src.includes('icecast') || audio.src.includes('stream2') || audio.src.includes('rusradio') || audio.src.includes('retro') || audio.src.includes('kissfm') || audio.src.includes('newradio')) {
+          // радио играет
+        }
+      }
+    } else {
+      musicSection.classList.add('active-section');
+      radioSection.classList.remove('active-section');
+      modeBtns[0].classList.remove('active');
+      modeBtns[1].classList.add('active');
+      if (isPlaying && audio.src && (audio.src.includes('icecast') || audio.src.includes('stream2') || audio.src.includes('rusradio') || audio.src.includes('retro') || audio.src.includes('kissfm') || audio.src.includes('newradio'))) {
+        audio.pause();
+        isPlaying = false;
+        updatePlayButtons(false);
+      }
+    }
+  }
+
+  function updatePlayButtons(playing) {
+    if (currentMode === 'radio') {
+      if (playing) {
+        radioPlayIcon.style.display = 'none';
+        radioPauseIcon.style.display = 'block';
+      } else {
+        radioPlayIcon.style.display = 'block';
+        radioPauseIcon.style.display = 'none';
+      }
+    } else {
+      if (playing) {
+        musicPlayIcon.style.display = 'none';
+        musicPauseIcon.style.display = 'block';
+      } else {
+        musicPlayIcon.style.display = 'block';
+        musicPauseIcon.style.display = 'none';
+      }
+    }
+  }
+
+  // общая функция воспроизведения/паузы
+  function togglePlay() {
+    if (isPlaying) {
+      audio.pause();
+      isPlaying = false;
+      updatePlayButtons(false);
+      stopBackgroundAnimation();
+    } else {
+      if (!audio.src) {
+        if (currentMode === 'radio') alert('Выберите радиостанцию');
+        else alert('Загрузите аудиофайл');
+        return;
+      }
+      audio.play().catch(e => console.warn(e));
+      isPlaying = true;
+      updatePlayButtons(true);
+      startBackgroundAnimation();
+    }
+  }
+
+  // радио выбор станции
+  function selectRadioStation(url, name) {
+    audio.src = url;
+    radioStationNameSpan.textContent = name;
+    if (currentMode === 'radio') {
+      audio.play().then(() => {
+        isPlaying = true;
+        updatePlayButtons(true);
+        startBackgroundAnimation();
+      }).catch(e => console.warn(e));
+    } else {
+      // если не в радио режиме, просто сохраняем
+    }
+    currentRadioStation = { url, name };
+  }
+
+  // музыка загрузка
+  function loadMusicFile(file) {
+    const fileURL = URL.createObjectURL(file);
+    audio.src = fileURL;
+    musicTrackNameSpan.textContent = file.name;
+    if (currentMode === 'music') {
+      audio.play().then(() => {
+        isPlaying = true;
+        updatePlayButtons(true);
+        startBackgroundAnimation();
+      }).catch(e => console.warn(e));
+    }
+    currentMusicFile = file;
+    audio.addEventListener('loadedmetadata', () => {
+      musicSeek.max = audio.duration;
+      totalTimeSpan.textContent = formatTime(audio.duration);
+    });
+  }
+
+  function formatTime(seconds) {
+    if (isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2,'0')}`;
+  }
+
+  // обновление перемотки
+  audio.addEventListener('timeupdate', () => {
+    if (currentMode === 'music' && !isNaN(audio.duration)) {
+      musicSeek.value = audio.currentTime;
+      currentTimeSpan.textContent = formatTime(audio.currentTime);
+    }
+  });
+  musicSeek.addEventListener('input', (e) => {
+    if (currentMode === 'music' && audio.duration) {
+      audio.currentTime = e.target.value;
+    }
+  });
+
+  // громкость
+  radioVolume.addEventListener('input', (e) => { if (currentMode === 'radio') audio.volume = e.target.value; });
+  musicVolume.addEventListener('input', (e) => { if (currentMode === 'music') audio.volume = e.target.value; });
+
+  // события окончания трека
+  audio.addEventListener('ended', () => {
+    isPlaying = false;
+    updatePlayButtons(false);
+    stopBackgroundAnimation();
+    if (currentMode === 'music') {
+      musicSeek.value = 0;
+      currentTimeSpan.textContent = '0:00';
+    }
+  });
+
+  // переключение режимов через кнопки
+  switchToRadio.addEventListener('click', () => setMode('radio'));
+  switchToMusic.addEventListener('click', () => setMode('music'));
+  modeBtns[0].addEventListener('click', () => setMode('radio'));
+  modeBtns[1].addEventListener('click', () => setMode('music'));
+
+  // радио кнопка плей/пауза
+  radioPlayBtn.addEventListener('click', togglePlay);
+  musicPlayBtn.addEventListener('click', togglePlay);
+
+  // радио дропдаун
+  radioDropdownBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    radioDropdownList.classList.toggle('show');
+  });
+  document.querySelectorAll('.dropdown-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      const url = item.getAttribute('data-url');
+      const name = item.getAttribute('data-name');
+      if (url) {
+        selectRadioStation(url, name);
+      }
+      radioDropdownList.classList.remove('show');
+    });
+  });
+  document.addEventListener('click', () => radioDropdownList.classList.remove('show'));
+
+  // загрузка музыки
+  loadMusicBtn.addEventListener('click', () => musicFileInput.click());
+  musicFileInput.addEventListener('change', (e) => {
+    if (e.target.files.length) loadMusicFile(e.target.files[0]);
+  });
+
+  // пред/след — пока заглушки
+  musicPrev.addEventListener('click', () => alert('Функция “предыдущий трек” в разработке'));
+  musicNext.addEventListener('click', () => alert('Функция “следующий трек” в разработке'));
+
+  // ========== ФОН: АБСТРАКТНЫЕ ВОЛНЫ / ЧАСТИЦЫ ==========
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+  let bgAnimationId = null;
+  let bgActive = false;
+  let bgOpacity = 0; // плавное появление/исчезновение
+
+  function initParticles() {
+    const w = canvas.width, h = canvas.height;
+    particles = [];
+    for (let i = 0; i < 65; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        radius: 12 + Math.random() * 45,
+        alpha: 0.05 + Math.random() * 0.08,
+        pulse: Math.random() * Math.PI * 2,
+        pulseSpeed: 0.003 + Math.random() * 0.008
+      });
+    }
+  }
+
+  function updateParticles() {
+    const w = canvas.width, h = canvas.height;
+    for (let p of particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < -50) p.x = w + 50;
+      if (p.x > w + 50) p.x = -50;
+      if (p.y < -50) p.y = h + 50;
+      if (p.y > h + 50) p.y = -50;
+
+      p.pulse += p.pulseSpeed;
+      const scale = 0.8 + Math.sin(p.pulse) * 0.2;
+      p.currentRadius = p.radius * scale;
+    }
+  }
+
+  function drawParticles() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (bgOpacity <= 0) return;
+    for (let p of particles) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.currentRadius || p.radius, 0, Math.PI*2);
+      const grad = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, p.currentRadius);
+      const alphaVal = p.alpha * bgOpacity;
+      grad.addColorStop(0, `rgba(255, 200, 220, ${alphaVal * 0.7})`);
+      grad.addColorStop(1, `rgba(255, 100, 130, ${alphaVal * 0.3})`);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+  }
+
+  function animateBackground() {
+    if (!bgActive && bgOpacity <= 0) {
+      if (bgAnimationId) cancelAnimationFrame(bgAnimationId);
+      bgAnimationId = null;
+      return;
+    }
+    updateParticles();
+    drawParticles();
+    bgAnimationId = requestAnimationFrame(animateBackground);
+  }
+
+  function startBackgroundAnimation() {
+    if (bgActive) return;
+    bgActive = true;
+    if (!bgAnimationId) animateBackground();
+    let fadeInterval = setInterval(() => {
+      if (bgOpacity < 0.7) {
+        bgOpacity = Math.min(0.7, bgOpacity + 0.035);
+        canvas.style.opacity = bgOpacity;
+      } else {
+        clearInterval(fadeInterval);
+      }
+    }, 50);
+  }
+
+  function stopBackgroundAnimation() {
+    if (!bgActive) return;
+    bgActive = false;
+    let fadeInterval = setInterval(() => {
+      if (bgOpacity > 0) {
+        bgOpacity = Math.max(0, bgOpacity - 0.025);
+        canvas.style.opacity = bgOpacity;
+      } else {
+        clearInterval(fadeInterval);
+        if (bgAnimationId) cancelAnimationFrame(bgAnimationId);
+        bgAnimationId = null;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }, 40);
+  }
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    initParticles();
+    drawParticles();
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+  canvas.style.opacity = 0;
+
+  // начальное состояние
+  setMode('radio');
+  audio.volume = 0.6;
+  radioVolume.value = 0.6;
+  musicVolume.value = 0.6;
+
+  // если пользователь переключает режим, а музыка играет – анимация продолжается (сохраняем логику)
+  audio.addEventListener('play', () => { if (isPlaying) startBackgroundAnimation(); });
+  audio.addEventListener('pause', () => { if (!isPlaying) stopBackgroundAnimation(); });
+  audio.addEventListener('ended', () => stopBackgroundAnimation());
+</script>
+</body>
+</html>
