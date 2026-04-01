@@ -187,21 +187,25 @@ function formatTime(time) {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-// ========== Фоновая анимация ==========
+// ========== Фоновая анимация (плавные газообразные круги) ==========
 const canvas = document.getElementById('bg-canvas');
 const ctx = canvas.getContext('2d');
 
 let circles = [];
 let animationId = null;
 let isAnimating = false;
+let currentGlobalAlpha = 0;      // для плавного появления/исчезновения
+let targetGlobalAlpha = 0;
+let fadeStep = 0.02;              // скорость изменения прозрачности
 
-// Параметры кругов
-const CIRCLE_COUNT = 40;
-const MAX_RADIUS = 60;
-const MIN_RADIUS = 20;
-const BASE_OPACITY = 0.08;   // очень слабые, еле заметные
-const VELOCITY_DAMP = 0.98;
-const RANDOM_FORCE = 0.2;
+// Параметры кругов (медленное движение, как газ)
+const CIRCLE_COUNT = 45;
+const MAX_RADIUS = 70;
+const MIN_RADIUS = 25;
+const BASE_OPACITY = 0.1;         // максимальная прозрачность круга (еле заметный)
+const VELOCITY_DAMP = 0.99;       // высокое трение → плавное затухание
+const RANDOM_FORCE = 0.05;        // очень слабое случайное ускорение
+const MAX_SPEED = 0.8;            // ограничиваем максимальную скорость
 
 // Инициализация кругов с учётом размеров canvas
 function initCircles() {
@@ -212,63 +216,78 @@ function initCircles() {
     circles.push({
       x: Math.random() * w,
       y: Math.random() * h,
-      vx: (Math.random() - 0.5) * 2,
-      vy: (Math.random() - 0.5) * 2,
+      vx: (Math.random() - 0.5) * 0.5,   // очень маленькая начальная скорость
+      vy: (Math.random() - 0.5) * 0.5,
       radius: MIN_RADIUS + Math.random() * (MAX_RADIUS - MIN_RADIUS),
-      opacity: BASE_OPACITY + Math.random() * 0.05
+      opacity: BASE_OPACITY + Math.random() * 0.05,
+      angle: Math.random() * Math.PI * 2,
+      radiusOffset: 0,
+      radiusSpeed: 0.005 + Math.random() * 0.01
     });
   }
 }
 
-// Обновление позиций с хаотичным движением
+// Обновление позиций с плавным, инерционным движением
 function updateCircles() {
   const w = canvas.width;
   const h = canvas.height;
   for (let c of circles) {
-    // Добавляем случайное ускорение для хаотичности
+    // Добавляем очень слабое случайное ускорение (почти как диффузия)
     c.vx += (Math.random() - 0.5) * RANDOM_FORCE;
     c.vy += (Math.random() - 0.5) * RANDOM_FORCE;
-    // Небольшое трение, чтобы движение не стало слишком быстрым
+    
+    // Ограничиваем скорость, чтобы движение оставалось плавным
+    if (c.vx > MAX_SPEED) c.vx = MAX_SPEED;
+    if (c.vx < -MAX_SPEED) c.vx = -MAX_SPEED;
+    if (c.vy > MAX_SPEED) c.vy = MAX_SPEED;
+    if (c.vy < -MAX_SPEED) c.vy = -MAX_SPEED;
+    
+    // Применяем трение
     c.vx *= VELOCITY_DAMP;
     c.vy *= VELOCITY_DAMP;
+    
     // Обновляем позицию
     c.x += c.vx;
     c.y += c.vy;
-    // Отражение от границ с мягким возвратом
+    
+    // Отражение от границ с потерей энергии (мягкое)
     if (c.x < 0) {
       c.x = 0;
-      c.vx = -c.vx * 0.8;
+      c.vx = -c.vx * 0.7;
     }
     if (c.x > w) {
       c.x = w;
-      c.vx = -c.vx * 0.8;
+      c.vx = -c.vx * 0.7;
     }
     if (c.y < 0) {
       c.y = 0;
-      c.vy = -c.vy * 0.8;
+      c.vy = -c.vy * 0.7;
     }
     if (c.y > h) {
       c.y = h;
-      c.vy = -c.vy * 0.8;
+      c.vy = -c.vy * 0.7;
     }
-    // Периодически слегка смещаем направление для разнообразия
-    if (Math.random() < 0.02) {
-      c.vx += (Math.random() - 0.5) * 0.5;
-      c.vy += (Math.random() - 0.5) * 0.5;
-    }
+    
+    // Плавное изменение радиуса (пульсация)
+    c.radiusOffset += c.radiusSpeed;
+    const radiusVar = Math.sin(c.radiusOffset) * 3;
+    c.currentRadius = Math.max(5, c.radius + radiusVar);
   }
 }
 
-// Отрисовка кругов (очень прозрачные, без резких контуров)
+// Отрисовка кругов с учётом текущей глобальной прозрачности (fade)
 function drawCircles() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (currentGlobalAlpha <= 0) return;
+  
   for (let c of circles) {
     ctx.beginPath();
-    ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
-    // Используем радиальный градиент для мягкости
-    const grad = ctx.createRadialGradient(c.x, c.y, c.radius * 0.2, c.x, c.y, c.radius);
-    grad.addColorStop(0, `rgba(255, 255, 255, ${c.opacity * 0.8})`);
-    grad.addColorStop(1, `rgba(255, 200, 200, ${c.opacity * 0.3})`);
+    ctx.arc(c.x, c.y, c.currentRadius || c.radius, 0, Math.PI * 2);
+    // Радиальный градиент для мягкости
+    const grad = ctx.createRadialGradient(c.x, c.y, (c.currentRadius || c.radius) * 0.2, c.x, c.y, (c.currentRadius || c.radius));
+    const alpha = c.opacity * currentGlobalAlpha;
+    grad.addColorStop(0, `rgba(255, 255, 255, ${alpha * 0.9})`);
+    grad.addColorStop(1, `rgba(255, 200, 200, ${alpha * 0.4})`);
     ctx.fillStyle = grad;
     ctx.fill();
   }
@@ -276,27 +295,48 @@ function drawCircles() {
 
 // Анимационный цикл
 function animateBackground() {
-  if (!isAnimating) return;
+  if (!isAnimating && targetGlobalAlpha === 0) return;
+  
+  // Плавное изменение глобальной прозрачности
+  if (currentGlobalAlpha !== targetGlobalAlpha) {
+    const step = fadeStep;
+    if (currentGlobalAlpha < targetGlobalAlpha) {
+      currentGlobalAlpha = Math.min(targetGlobalAlpha, currentGlobalAlpha + step);
+    } else if (currentGlobalAlpha > targetGlobalAlpha) {
+      currentGlobalAlpha = Math.max(targetGlobalAlpha, currentGlobalAlpha - step);
+    }
+    // Если достигли нуля и анимация не нужна, останавливаем цикл
+    if (currentGlobalAlpha <= 0 && !isAnimating) {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+  }
+  
   updateCircles();
   drawCircles();
   animationId = requestAnimationFrame(animateBackground);
 }
 
-// Запуск анимации
+// Запуск анимации с плавным появлением
 function startBackgroundAnimation() {
-  if (isAnimating) return;
+  if (targetGlobalAlpha === 1) return; // уже запущена
+  targetGlobalAlpha = 1;
+  if (!animationId) {
+    animateBackground();
+  }
   isAnimating = true;
-  animateBackground();
 }
 
-// Остановка анимации и очистка canvas
+// Остановка анимации с плавным исчезновением
 function stopBackgroundAnimation() {
-  if (animationId) {
-    cancelAnimationFrame(animationId);
-    animationId = null;
-  }
+  targetGlobalAlpha = 0;
   isAnimating = false;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // анимация продолжит работать, пока не станет currentGlobalAlpha = 0,
+  // после чего цикл остановится сам
 }
 
 // Слушатели событий audio для управления фоновой анимацией
@@ -321,25 +361,20 @@ function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   initCircles();
-  if (isAnimating) {
-    // перерисовываем с новыми размерами, но анимация продолжается
+  if (isAnimating || targetGlobalAlpha > 0) {
+    // перерисовываем с новыми размерами, сохраняя текущий уровень прозрачности
     drawCircles();
   } else {
-    // если анимация неактивна, просто очищаем
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
 }
 
 window.addEventListener('resize', () => {
   resizeCanvas();
-  // если анимация активна, нужно обновить позиции кругов относительно нового размера
-  if (isAnimating) {
-    // не сбрасываем позиции, просто продолжаем, но круги могут оказаться за пределами,
-    // что исправит updateCircles при следующем кадре.
-    // Для плавности можно подкорректировать, но не обязательно.
-  }
 });
 
 // Инициализация
 resizeCanvas();
-// На старте анимация не запущена, так как музыка не играет
+// На старте анимация неактивна, прозрачность 0
+currentGlobalAlpha = 0;
+targetGlobalAlpha = 0;
