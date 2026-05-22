@@ -1,9 +1,7 @@
-// Импорты Firebase (версия 12.13.0)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
 import { getDatabase, ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
-import { getAuth, signInWithRedirect, GithubAuthProvider, onAuthStateChanged, getRedirectResult } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GithubAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 
-// Твой конфиг (публичный)
 const firebaseConfig = {
     apiKey: "AIzaSyCX9IqXD7GBLt0Zmw1znFknpIUOzGZSYh8",
     authDomain: "expo-tasks-todo.firebaseapp.com",
@@ -18,7 +16,6 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// DOM элементы
 const loginBtn = document.getElementById('loginBtn');
 const appContainer = document.getElementById('app');
 const taskInput = document.getElementById('taskInput');
@@ -30,29 +27,22 @@ const modalConfirm = document.getElementById('modalConfirm');
 const modalCancel = document.getElementById('modalCancel');
 const body = document.body;
 
-// Состояние
 let tasks = [];
 let taskToDelete = null;
 let isModalOpen = false;
 let currentUser = null;
 let tasksUnsubscribe = null;
 
-// Drag state (pointer events)
 let dragState = null;
 const DRAG_THRESHOLD = 5;
 
 // ── Аутентификация ──
-loginBtn.style.display = 'block'; // показываем кнопку
-
-// Обработка результата редиректа (вызывается при возврате после входа)
-getRedirectResult(auth).catch(err => {
-    console.error('Ошибка после редиректа:', err);
-});
+loginBtn.style.display = 'block';
 
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
-        console.log('Твой GitHub UID:', user.uid); // Скопируй этот UID для правил базы
+        console.log('Твой GitHub UID:', user.uid);
         loginBtn.style.display = 'none';
         appContainer.style.display = '';
         initRealtimeSync();
@@ -69,12 +59,20 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-loginBtn.addEventListener('click', () => {
+loginBtn.addEventListener('click', async () => {
     const provider = new GithubAuthProvider();
-    signInWithRedirect(auth, provider).catch(err => {
+    try {
+        await signInWithPopup(auth, provider);
+    } catch (err) {
         console.error('Ошибка входа:', err);
-        alert('Не удалось войти через GitHub. Попробуй позже.');
-    });
+        if (err.code === 'auth/unauthorized-domain') {
+            alert('Домен не добавлен в Firebase. Проверь разрешённые домены в Authentication → Settings.');
+        } else if (err.code === 'auth/popup-blocked') {
+            alert('Всплывающее окно заблокировано. Разреши всплывающие окна для этого сайта.');
+        } else {
+            alert('Не удалось войти. Подробности в консоли (F12).');
+        }
+    }
 });
 
 function initRealtimeSync() {
@@ -92,7 +90,7 @@ function initRealtimeSync() {
     deadlineInput.value = '';
 }
 
-// ── Работа с задачами через Firebase ──
+// ── Работа с задачами ──
 function addTask() {
     if (!currentUser) return;
     const text = taskInput.value.trim();
@@ -102,16 +100,13 @@ function addTask() {
         setTimeout(() => { taskInput.style.borderColor = ''; }, 400);
         return;
     }
-
     const deadlineVal = deadlineInput.value || null;
     const newId = generateId();
-    const taskData = {
+    set(ref(db, 'tasks/' + newId), {
         text,
         deadline: deadlineVal,
         completed: false,
-    };
-
-    set(ref(db, 'tasks/' + newId), taskData).then(() => {
+    }).then(() => {
         taskInput.value = '';
         deadlineInput.value = '';
         taskInput.focus();
@@ -126,9 +121,7 @@ function toggleTask(taskId) {
 
 function deleteTask(taskId) {
     const card = taskList.querySelector(`[data-id="${taskId}"]`);
-    const performDelete = () => {
-        set(ref(db, 'tasks/' + taskId), null);
-    };
+    const performDelete = () => set(ref(db, 'tasks/' + taskId), null);
     if (card) {
         card.classList.add('task-exit');
         card.addEventListener('animationend', performDelete, { once: true });
@@ -141,23 +134,14 @@ function reorderTask(draggedId, targetId, insertBefore) {
     const draggedIdx = tasks.findIndex(t => t.id === draggedId);
     const targetIdx = tasks.findIndex(t => t.id === targetId);
     if (draggedIdx === -1 || targetIdx === -1) return;
-
     const newTasks = [...tasks];
     const [draggedTask] = newTasks.splice(draggedIdx, 1);
     const newTargetIdx = newTasks.findIndex(t => t.id === targetId);
-    if (insertBefore) {
-        newTasks.splice(newTargetIdx, 0, draggedTask);
-    } else {
-        newTasks.splice(newTargetIdx + 1, 0, draggedTask);
-    }
-
+    if (insertBefore) newTasks.splice(newTargetIdx, 0, draggedTask);
+    else newTasks.splice(newTargetIdx + 1, 0, draggedTask);
     const updates = {};
     newTasks.forEach(t => {
-        updates['tasks/' + t.id] = {
-            text: t.text,
-            deadline: t.deadline,
-            completed: t.completed
-        };
+        updates['tasks/' + t.id] = { text: t.text, deadline: t.deadline, completed: t.completed };
     });
     update(ref(db), updates);
 }
