@@ -56,6 +56,12 @@ body.modal-open {
     overflow: hidden;
 }
 
+/* Блокируем скролл во время перетаскивания */
+body.dragging-active {
+    overflow: hidden;
+    touch-action: none;
+}
+
 .app {
     width: 100%;
     max-width: 640px;
@@ -218,7 +224,7 @@ body.modal-open .app {
 .task-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0px;            /* зазор между карточками */
     min-height: 60px;
 }
 
@@ -237,27 +243,28 @@ body.modal-open .app {
     line-height: 1.6;
 }
 
+/* Карточка задачи */
 .task-card {
     display: flex;
     align-items: center;
     gap: 14px;
     padding: 16px 14px 16px 10px;
+    margin-bottom: 8px;          /* отступ снизу для визуального разделения */
     border: 1px solid var(--white-15);
     border-radius: var(--radius-md);
     background: var(--white-10);
     cursor: grab;
-    transition: all var(--transition-fast);
+    transition: border-color var(--transition-fast), background var(--transition-fast), transform 0.1s ease, box-shadow 0.1s ease;
     position: relative;
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
-    touch-action: manipulation;
-    transform-origin: center center;
-    will-change: transform, opacity, border-color, background;
+    touch-action: manipulation;  /* позволит браузеру обрабатывать скролл, но мы перехватим pointerdown */
+    will-change: transform;
 }
 
-.task-card.no-touch-action {
-    touch-action: none;
+.task-card:last-child {
+    margin-bottom: 0;
 }
 
 .task-card:hover {
@@ -269,31 +276,65 @@ body.modal-open .app {
     cursor: grabbing;
 }
 
+/* Состояние перетаскивания */
 .task-card.dragging {
     opacity: 0.35;
-    border-color: var(--white-30);
+    border-color: var(--white-40);
     background: var(--white-20);
     transform: scale(0.98);
     cursor: grabbing;
     z-index: 5;
+    transition: none;           /* плавность не нужна, карточка двигается за пальцем */
 }
 
-.task-card.drag-over {
-    border-color: var(--white-50);
-    background: var(--white-20);
-    box-shadow: inset 0 0 0 1px var(--white-30);
-    transform: scale(1.01);
-    transition: all 100ms ease;
+/* Клон, который следует за указателем */
+.drag-clone {
+    position: fixed;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0.95;
+    transform: scale(1.03);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    border: 1.5px solid var(--white-40);
+    border-radius: var(--radius-md);
+    background: #1a1a1a;
+    padding: 16px 14px;
+    font-family: var(--font);
+    font-size: 16px;
+    color: var(--white);
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    max-width: 90vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: none;
+    display: none;
 }
 
-.task-card.drag-over-top {
-    border-top: 2px solid var(--white-60);
-    margin-top: 4px;
+/* Индикатор места вставки (линия между карточками) */
+.drop-indicator {
+    height: 2px;
+    background: var(--white-50);
+    margin: -1px 0;
+    border-radius: 1px;
+    transition: opacity 0.1s;
+    opacity: 0;
+    pointer-events: none;
 }
 
-.task-card.drag-over-bottom {
-    border-bottom: 2px solid var(--white-60);
-    margin-bottom: 4px;
+.drop-indicator.active {
+    opacity: 1;
+}
+
+/* Карточка, которая «расступается» для вставки */
+.task-card.drop-before {
+    margin-top: 10px;   /* создаём место для индикатора */
+    transition: margin 0.15s ease;
+}
+
+.task-card.drop-after {
+    margin-bottom: 10px;
+    transition: margin 0.15s ease;
 }
 
 .task-card.completed {
@@ -622,28 +663,6 @@ body.modal-open .app {
 .btn-modal:focus-visible {
     outline: 2px solid var(--white-40);
     outline-offset: 3px;
-}
-
-.drag-clone {
-    position: fixed;
-    z-index: 200;
-    pointer-events: none;
-    opacity: 0.9;
-    transform: scale(1.03);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-    border: 1.5px solid var(--white-40);
-    border-radius: var(--radius-md);
-    background: #1a1a1a;
-    padding: 16px 14px;
-    font-family: var(--font);
-    font-size: 16px;
-    color: var(--white);
-    letter-spacing: -0.01em;
-    white-space: nowrap;
-    max-width: 90vw;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: none;
 }
 
 @media (max-width: 600px) {

@@ -7,22 +7,17 @@
     const modalOverlay = document.getElementById('modalOverlay');
     const modalConfirm = document.getElementById('modalConfirm');
     const modalCancel = document.getElementById('modalCancel');
-    const dragClone = document.getElementById('dragClone');
     const body = document.body;
 
     // ── State ──
-    const STORAGE_KEY = 'bw-todo-tasks-v3';
+    const STORAGE_KEY = 'bw-todo-tasks-v4';
     let tasks = [];
     let taskToDelete = null;
     let isModalOpen = false;
 
-    // Touch drag state
-    let touchDragData = null;
-    let touchDragActive = false;
-    const TOUCH_DRAG_THRESHOLD = 8;
-
-    // Device detection for drag strategy
-    const isTouchDevice = window.matchMedia('(any-pointer: coarse)').matches;
+    // Drag state (pointer events)
+    let dragState = null;
+    const DRAG_THRESHOLD = 5; // пикселей, чтобы отличить клик от перетаскивания
 
     // ── Load / Save ──
     function loadTasks() {
@@ -74,10 +69,6 @@
             if (task.completed) card.classList.add('completed');
             if (animateNewId && task.id === animateNewId) {
                 card.classList.add('task-enter');
-            }
-            // HTML5 drag only on non-touch primary devices
-            if (!isTouchDevice) {
-                card.setAttribute('draggable', 'true');
             }
             card.setAttribute('data-id', task.id);
             card.setAttribute('data-index', index);
@@ -131,7 +122,7 @@
                 content.appendChild(deadlineEl);
             }
 
-            // Copy button (icon: two overlapping squares)
+            // Copy button
             const btnCopy = document.createElement('button');
             btnCopy.className = 'btn-copy';
             btnCopy.setAttribute('aria-label', 'Копировать текст задачи');
@@ -168,20 +159,8 @@
             card.appendChild(btnCopy);
             card.appendChild(btnDel);
 
-            // HTML5 Drag & Drop (desktop only)
-            if (!isTouchDevice) {
-                card.addEventListener('dragstart', handleDragStart);
-                card.addEventListener('dragend', handleDragEnd);
-                card.addEventListener('dragover', handleDragOver);
-                card.addEventListener('dragleave', handleDragLeave);
-                card.addEventListener('drop', handleDrop);
-            }
-
-            // Touch drag (mobile / touch devices)
-            card.addEventListener('touchstart', handleTouchStart, { passive: false });
-            card.addEventListener('touchmove', handleTouchMove, { passive: false });
-            card.addEventListener('touchend', handleTouchEnd);
-            card.addEventListener('touchcancel', handleTouchEnd);
+            // Pointer events для drag
+            card.addEventListener('pointerdown', onPointerDown);
 
             // Keyboard
             card.addEventListener('keydown', (e) => {
@@ -196,19 +175,6 @@
 
             taskList.appendChild(card);
         });
-
-        updateDragCloneBaseStyle();
-    }
-
-    function updateDragCloneBaseStyle() {
-        dragClone.style.fontFamily = getComputedStyle(document.body).fontFamily;
-        dragClone.style.fontSize = '16px';
-        dragClone.style.letterSpacing = '-0.01em';
-        dragClone.style.borderRadius = '12px';
-        if (window.innerWidth <= 600) {
-            dragClone.style.fontSize = '15px';
-            dragClone.style.borderRadius = '8px';
-        }
     }
 
     function formatDeadline(deadlineStr) {
@@ -236,7 +202,6 @@
     // ── Copy task text ──
     function copyTaskText(text, buttonElement) {
         if (!text) return;
-        // Modern clipboard API
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(text).then(() => {
                 showCopiedFeedback(buttonElement);
@@ -258,15 +223,12 @@
         try {
             document.execCommand('copy');
             showCopiedFeedback(buttonElement);
-        } catch (err) {
-            // silent fail
-        }
+        } catch (err) {}
         document.body.removeChild(textarea);
     }
 
     function showCopiedFeedback(button) {
         button.classList.add('copied');
-        // Change SVG to checkmark temporarily
         const originalHTML = button.innerHTML;
         button.innerHTML = `
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -393,78 +355,200 @@
         }
     });
 
-    // ── HTML5 Drag & Drop (desktop) ──
-    let draggedTaskId = null;
+    // ── Pointer‑based Drag & Drop ──
+    function onPointerDown(e) {
+        // Игнорируем, если открыто модальное окно
+        if (isModalOpen) return;
+        // Не начинаем перетаскивание на кнопках или чекбоксе
+        if (e.target.closest('.btn-delete, .btn-copy, .checkbox-wrap')) return;
 
-    function handleDragStart(e) {
-        if (isModalOpen) { e.preventDefault(); return; }
         const card = e.currentTarget;
-        draggedTaskId = card.getAttribute('data-id');
-        card.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', draggedTaskId);
-        try {
-            const ghost = card.cloneNode(true);
-            ghost.style.position = 'absolute';
-            ghost.style.top = '-9999px';
-            ghost.style.opacity = '0.7';
-            ghost.style.width = card.offsetWidth + 'px';
-            document.body.appendChild(ghost);
-            e.dataTransfer.setDragImage(ghost, ghost.offsetWidth / 2, ghost.offsetHeight / 2);
-            requestAnimationFrame(() => ghost.remove());
-        } catch (err) {}
-        requestAnimationFrame(() => { card.style.opacity = '0.35'; });
-    }
+        const taskId = card.getAttribute('data-id');
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
 
-    function handleDragEnd(e) {
-        const card = e.currentTarget;
-        card.classList.remove('dragging');
-        card.style.opacity = '';
-        draggedTaskId = null;
-        document.querySelectorAll('.task-card.drag-over, .task-card.drag-over-top, .task-card.drag-over-bottom')
-            .forEach(el => el.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom'));
-    }
+        // Захватываем указатель, чтобы получать события даже за пределами элемента
+        card.setPointerCapture(e.pointerId);
 
-    function handleDragOver(e) {
+        dragState = {
+            card: card,
+            taskId: taskId,
+            task: task,
+            startX: e.clientX,
+            startY: e.clientY,
+            pointerId: e.pointerId,
+            clone: null,
+            moved: false,
+            initialRect: card.getBoundingClientRect(),
+        };
+
+        // Убираем стандартное поведение браузера (скролл, выделение)
         e.preventDefault();
-        if (!draggedTaskId) return;
-        const card = e.currentTarget;
-        if (card.getAttribute('data-id') === draggedTaskId) return;
-        e.dataTransfer.dropEffect = 'move';
-
-        const rect = card.getBoundingClientRect();
-        const midY = rect.top + rect.height / 2;
-        const isTopHalf = e.clientY < midY;
-
-        document.querySelectorAll('.task-card.drag-over, .task-card.drag-over-top, .task-card.drag-over-bottom')
-            .forEach(el => {
-                if (el !== card) el.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
-            });
-        card.classList.add('drag-over');
-        card.classList.remove('drag-over-top', 'drag-over-bottom');
-        if (isTopHalf) card.classList.add('drag-over-top');
-        else card.classList.add('drag-over-bottom');
+        e.stopPropagation();
     }
 
-    function handleDragLeave(e) {
-        const card = e.currentTarget;
-        if (!card.contains(e.relatedTarget)) {
-            card.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
+    function onPointerMove(e) {
+        if (!dragState) return;
+        // Проверяем, что событие от того же указателя
+        if (e.pointerId !== dragState.pointerId) return;
+
+        const dx = e.clientX - dragState.startX;
+        const dy = e.clientY - dragState.startY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (!dragState.moved && distance < DRAG_THRESHOLD) return;
+
+        if (!dragState.moved) {
+            // Активируем перетаскивание
+            dragState.moved = true;
+            body.classList.add('dragging-active');
+            const card = dragState.card;
+            card.classList.add('dragging');
+
+            // Создаём клон
+            const clone = createDragClone(dragState.task.text);
+            dragState.clone = clone;
+            const rect = card.getBoundingClientRect();
+            clone.style.left = rect.left + 'px';
+            clone.style.top = rect.top + 'px';
+            clone.style.display = 'block';
+            // Фиксируем начальные смещения мыши относительно карточки
+            dragState.offsetX = e.clientX - rect.left;
+            dragState.offsetY = e.clientY - rect.top;
+        }
+
+        // Перемещаем клон
+        const clone = dragState.clone;
+        if (clone) {
+            const x = e.clientX - dragState.offsetX;
+            const y = e.clientY - dragState.offsetY;
+            clone.style.left = x + 'px';
+            clone.style.top = y + 'px';
+        }
+
+        // Обновляем индикатор вставки
+        updateDropIndicator(e.clientX, e.clientY, dragState.card);
+        e.preventDefault();
+    }
+
+    function onPointerUp(e) {
+        if (!dragState) return;
+
+        if (dragState.moved) {
+            // Завершаем перетаскивание
+            const targetCard = getDropTarget(e.clientX, e.clientY, dragState.card);
+            if (targetCard && targetCard !== dragState.card) {
+                const targetId = targetCard.getAttribute('data-id');
+                const rect = targetCard.getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+                const insertBefore = e.clientY < midY;
+                reorderTask(dragState.taskId, targetId, insertBefore);
+            } else {
+                // Нет цели – просто перерисовываем без изменений
+                renderTasks();
+            }
+            cleanupDrag();
+        } else {
+            // Это был клик, не перетаскивание – ничего не делаем
+            cleanupDrag();
         }
     }
 
-    function handleDrop(e) {
-        e.preventDefault();
-        const card = e.currentTarget;
-        card.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
-        if (!draggedTaskId) return;
-        const targetId = card.getAttribute('data-id');
-        if (targetId === draggedTaskId) return;
+    function onPointerCancel(e) {
+        if (dragState && dragState.pointerId === e.pointerId) {
+            cleanupDrag();
+        }
+    }
 
-        const rect = card.getBoundingClientRect();
+    function cleanupDrag() {
+        if (!dragState) return;
+        // Удаляем клон
+        if (dragState.clone) {
+            dragState.clone.remove();
+        }
+        // Убираем классы с карточки
+        const card = dragState.card;
+        if (card) {
+            card.classList.remove('dragging');
+            card.releasePointerCapture(dragState.pointerId);
+        }
+        // Убираем индикатор вставки
+        removeDropIndicator();
+        body.classList.remove('dragging-active');
+        dragState = null;
+    }
+
+    function createDragClone(text) {
+        const clone = document.createElement('div');
+        clone.className = 'drag-clone';
+        clone.textContent = text;
+        document.body.appendChild(clone);
+        return clone;
+    }
+
+    // Индикатор вставки — временный элемент, показывающий, куда встанет задача
+    let dropIndicator = null;
+
+    function updateDropIndicator(clientX, clientY, draggedCard) {
+        const target = getDropTarget(clientX, clientY, draggedCard);
+        removeDropIndicator();
+
+        if (!target || target === draggedCard) return;
+
+        const rect = target.getBoundingClientRect();
         const midY = rect.top + rect.height / 2;
-        reorderTask(draggedTaskId, targetId, e.clientY < midY);
-        draggedTaskId = null;
+        const insertBefore = clientY < midY;
+
+        // Создаём или переиспользуем индикатор
+        if (!dropIndicator) {
+            dropIndicator = document.createElement('div');
+            dropIndicator.className = 'drop-indicator';
+            taskList.appendChild(dropIndicator);
+        }
+
+        // Позиционируем индикатор
+        if (insertBefore) {
+            target.before(dropIndicator);
+            target.classList.add('drop-before');
+            target.classList.remove('drop-after');
+        } else {
+            target.after(dropIndicator);
+            target.classList.add('drop-after');
+            target.classList.remove('drop-before');
+        }
+
+        dropIndicator.classList.add('active');
+    }
+
+    function removeDropIndicator() {
+        if (dropIndicator) {
+            dropIndicator.remove();
+            dropIndicator = null;
+        }
+        // Убираем временные классы у всех карточек
+        document.querySelectorAll('.task-card.drop-before, .task-card.drop-after').forEach(card => {
+            card.classList.remove('drop-before', 'drop-after');
+        });
+    }
+
+    function getDropTarget(clientX, clientY, draggedCard) {
+        const cards = document.querySelectorAll('.task-card:not(.dragging)');
+        let bestCard = null;
+        let bestDistance = Infinity;
+
+        cards.forEach(card => {
+            const rect = card.getBoundingClientRect();
+            // Считаем расстояние до центра карточки
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const dist = Math.hypot(clientX - centerX, clientY - centerY);
+            if (dist < bestDistance && dist < 100) { // порог срабатывания
+                bestDistance = dist;
+                bestCard = card;
+            }
+        });
+
+        return bestCard;
     }
 
     function reorderTask(draggedId, targetId, insertBefore) {
@@ -480,151 +564,19 @@
         renderTasks();
     }
 
-    // ── Touch drag (mobile) ──
-    function handleTouchStart(e) {
-        if (isModalOpen) return;
-        if (e.touches.length !== 1) return;
-        const touch = e.touches[0];
-        const target = e.target;
-        // Ignore if touching action buttons or checkbox
-        if (target.closest('.btn-delete') || target.closest('.btn-copy') || target.closest('.checkbox-wrap')) return;
-
-        const card = e.currentTarget;
-        const taskId = card.getAttribute('data-id');
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) return;
-
-        touchDragData = {
-            taskId: taskId,
-            card: card,
-            startX: touch.clientX,
-            startY: touch.clientY,
-            task: task,
-        };
-        touchDragActive = false;
-
-        // Prevent default only after threshold; we'll add touch-action class later
-    }
-
-    function handleTouchMove(e) {
-        if (!touchDragData) return;
-        if (e.touches.length !== 1) { endTouchDrag(); return; }
-
-        const touch = e.touches[0];
-        const deltaX = Math.abs(touch.clientX - touchDragData.startX);
-        const deltaY = Math.abs(touch.clientY - touchDragData.startY);
-        const totalDelta = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-        if (!touchDragActive && totalDelta < TOUCH_DRAG_THRESHOLD) return;
-
-        if (!touchDragActive) {
-            touchDragActive = true;
-            // Now we commit to drag – prevent default and lock touch-action
-            e.preventDefault();
-            touchDragData.card.classList.add('no-touch-action');
-            // Show clone
-            const card = touchDragData.card;
-            const rect = card.getBoundingClientRect();
-            dragClone.textContent = touchDragData.task.text;
-            dragClone.style.display = 'block';
-            dragClone.style.width = rect.width + 'px';
-            dragClone.style.left = rect.left + 'px';
-            dragClone.style.top = rect.top + 'px';
-            dragClone.style.zIndex = '200';
-            dragClone.style.opacity = '0.9';
-            dragClone.style.transform = 'scale(1.03)';
-            card.classList.add('dragging');
-            card.style.opacity = '0.35';
-        } else {
-            e.preventDefault();
+    // Глобальные слушатели для перемещения и отпускания
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onPointerUp);
+    document.addEventListener('pointercancel', onPointerCancel);
+    // Потеря захвата (если браузер отменил)
+    document.addEventListener('lostpointercapture', (e) => {
+        if (dragState && dragState.card === e.target) {
+            cleanupDrag();
         }
-
-        // Move clone
-        const offsetX = touch.clientX - touchDragData.startX;
-        const offsetY = touch.clientY - touchDragData.startY;
-        const cardRect = touchDragData.card.getBoundingClientRect();
-        dragClone.style.left = (cardRect.left + offsetX) + 'px';
-        dragClone.style.top = (cardRect.top + offsetY) + 'px';
-
-        updateTouchDropTarget(touch.clientX, touch.clientY);
-    }
-
-    function handleTouchEnd(e) {
-        if (!touchDragData) return;
-        if (touchDragActive) {
-            const targetCard = document.querySelector('.task-card.drag-over');
-            if (targetCard && targetCard.getAttribute('data-id') !== touchDragData.taskId) {
-                const targetId = targetCard.getAttribute('data-id');
-                const isTopHalf = targetCard.classList.contains('drag-over-top');
-                reorderTask(touchDragData.taskId, targetId, isTopHalf);
-            } else {
-                renderTasks(); // restore if no valid drop
-            }
-        }
-        endTouchDrag();
-    }
-
-    function endTouchDrag() {
-        dragClone.style.display = 'none';
-        dragClone.style.opacity = '0';
-        if (touchDragData && touchDragData.card) {
-            touchDragData.card.classList.remove('dragging', 'no-touch-action');
-            touchDragData.card.style.opacity = '';
-        }
-        document.querySelectorAll('.task-card.drag-over, .task-card.drag-over-top, .task-card.drag-over-bottom')
-            .forEach(el => el.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom'));
-        touchDragData = null;
-        touchDragActive = false;
-    }
-
-    function updateTouchDropTarget(clientX, clientY) {
-        document.querySelectorAll('.task-card.drag-over, .task-card.drag-over-top, .task-card.drag-over-bottom')
-            .forEach(el => el.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom'));
-
-        const cards = document.querySelectorAll('.task-card:not(.dragging)');
-        let bestCard = null;
-        let bestDistance = Infinity;
-        let isTopHalf = false;
-
-        cards.forEach(card => {
-            const rect = card.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            const dist = Math.sqrt((clientX - centerX) ** 2 + (clientY - centerY) ** 2);
-            if (dist < bestDistance && dist < 80) {
-                bestDistance = dist;
-                bestCard = card;
-                isTopHalf = clientY < rect.top + rect.height / 2;
-            }
-        });
-
-        if (bestCard) {
-            bestCard.classList.add('drag-over');
-            if (isTopHalf) bestCard.classList.add('drag-over-top');
-            else bestCard.classList.add('drag-over-bottom');
-        }
-    }
-
-    // Global touch listeners to continue drag outside card
-    document.addEventListener('touchmove', (e) => {
-        if (touchDragActive && touchDragData) {
-            const touch = e.touches[0];
-            const offsetX = touch.clientX - touchDragData.startX;
-            const offsetY = touch.clientY - touchDragData.startY;
-            const cardRect = touchDragData.card.getBoundingClientRect();
-            dragClone.style.left = (cardRect.left + offsetX) + 'px';
-            dragClone.style.top = (cardRect.top + offsetY) + 'px';
-            updateTouchDropTarget(touch.clientX, touch.clientY);
-            e.preventDefault();
-        }
-    }, { passive: false });
-
-    document.addEventListener('touchend', (e) => {
-        if (touchDragActive) handleTouchEnd(e);
     });
-    document.addEventListener('touchcancel', () => {
-        if (touchDragActive) endTouchDrag();
-    });
+
+    // Предотвращаем стандартное поведение браузера при перетаскивании картинок и т.п.
+    document.addEventListener('dragstart', (e) => e.preventDefault());
 
     // ── Event listeners ──
     btnAdd.addEventListener('click', addTask);
@@ -636,15 +588,13 @@
     });
     document.addEventListener('submit', (e) => e.preventDefault());
     window.addEventListener('resize', () => {
-        updateDragCloneBaseStyle();
-        if (touchDragActive) endTouchDrag();
+        if (dragState) cleanupDrag();
     });
 
     // ── Init ──
     function init() {
         loadTasks();
         renderTasks();
-        updateDragCloneBaseStyle();
         taskInput.focus();
         deadlineInput.value = '';
     }
@@ -659,6 +609,6 @@
     console.log('%c Black & White %cTodo',
         'background:#000;color:#fff;padding:6px 10px;font-family:sans-serif;font-size:14px;',
         'background:#fff;color:#000;padding:6px 10px;font-family:sans-serif;font-size:14px;');
-    console.log('%cГотово к работе · Задачи сохраняются локально',
+    console.log('%cПеретаскивание теперь на Pointer Events – работает везде одинаково надёжно',
         'color:rgba(255,255,255,0.5);font-family:sans-serif;font-size:12px;');
 })();
