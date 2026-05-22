@@ -256,6 +256,10 @@ body.modal-open .app {
     will-change: transform, opacity, border-color, background;
 }
 
+.task-card.no-touch-action {
+    touch-action: none;
+}
+
 .task-card:hover {
     border-color: var(--white-30);
     background: var(--white-15);
@@ -449,6 +453,8 @@ body.modal-open .app {
     font-weight: 400;
 }
 
+/* Кнопки действий (копирование и удаление) */
+.btn-copy,
 .btn-delete {
     flex: 0 0 auto;
     width: 34px;
@@ -457,7 +463,6 @@ body.modal-open .app {
     border: none;
     background: transparent;
     color: var(--white-30);
-    font-size: 20px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -470,27 +475,42 @@ body.modal-open .app {
     opacity: 0;
     pointer-events: auto;
     z-index: 2;
+    padding: 0;
 }
 
+.btn-copy svg,
+.btn-delete {
+    font-size: 20px;
+}
+
+.task-card:hover .btn-copy,
 .task-card:hover .btn-delete {
     opacity: 1;
 }
 
+.btn-copy:hover,
 .btn-delete:hover {
     color: var(--white);
     background: var(--white-15);
 }
 
+.btn-copy:active,
 .btn-delete:active {
     background: var(--white-25);
     transform: scale(0.9);
     transition: transform 80ms ease;
 }
 
+.btn-copy:focus-visible,
 .btn-delete:focus-visible {
     opacity: 1;
     outline: 2px solid var(--white-40);
     outline-offset: 2px;
+}
+
+.btn-copy.copied {
+    color: var(--white);
+    background: var(--white-20);
 }
 
 .modal-overlay {
@@ -698,6 +718,7 @@ body.modal-open .app {
         border-width: 0 1.5px 1.5px 0;
     }
 
+    .btn-copy,
     .btn-delete {
         width: 30px;
         height: 30px;
@@ -705,10 +726,17 @@ body.modal-open .app {
         opacity: 0.6;
     }
 
+    .btn-copy svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .task-card:hover .btn-copy,
     .task-card:hover .btn-delete {
         opacity: 0.6;
     }
 
+    .task-card .btn-copy:active,
     .task-card .btn-delete:active {
         opacity: 1;
     }

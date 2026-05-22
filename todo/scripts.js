@@ -1,6 +1,5 @@
 (function() {
     // ── DOM references ──
-    const app = document.getElementById('app');
     const taskInput = document.getElementById('taskInput');
     const deadlineInput = document.getElementById('deadlineInput');
     const btnAdd = document.getElementById('btnAdd');
@@ -12,7 +11,7 @@
     const body = document.body;
 
     // ── State ──
-    const STORAGE_KEY = 'bw-todo-tasks-v2';
+    const STORAGE_KEY = 'bw-todo-tasks-v3';
     let tasks = [];
     let taskToDelete = null;
     let isModalOpen = false;
@@ -21,6 +20,9 @@
     let touchDragData = null;
     let touchDragActive = false;
     const TOUCH_DRAG_THRESHOLD = 8;
+
+    // Device detection for drag strategy
+    const isTouchDevice = window.matchMedia('(any-pointer: coarse)').matches;
 
     // ── Load / Save ──
     function loadTasks() {
@@ -73,7 +75,10 @@
             if (animateNewId && task.id === animateNewId) {
                 card.classList.add('task-enter');
             }
-            card.setAttribute('draggable', 'true');
+            // HTML5 drag only on non-touch primary devices
+            if (!isTouchDevice) {
+                card.setAttribute('draggable', 'true');
+            }
             card.setAttribute('data-id', task.id);
             card.setAttribute('data-index', index);
             card.setAttribute('role', 'listitem');
@@ -126,6 +131,24 @@
                 content.appendChild(deadlineEl);
             }
 
+            // Copy button (icon: two overlapping squares)
+            const btnCopy = document.createElement('button');
+            btnCopy.className = 'btn-copy';
+            btnCopy.setAttribute('aria-label', 'Копировать текст задачи');
+            btnCopy.setAttribute('title', 'Копировать');
+            btnCopy.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+                    <path d="M3 11V3C3 2.2 3.7 2 4 2H10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+            `;
+            btnCopy.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                copyTaskText(task.text, btnCopy);
+            });
+            btnCopy.addEventListener('pointerdown', (e) => e.stopPropagation());
+
             // Delete button
             const btnDel = document.createElement('button');
             btnDel.className = 'btn-delete';
@@ -142,16 +165,19 @@
             card.appendChild(grip);
             card.appendChild(cbWrap);
             card.appendChild(content);
+            card.appendChild(btnCopy);
             card.appendChild(btnDel);
 
-            // HTML5 Drag & Drop
-            card.addEventListener('dragstart', handleDragStart);
-            card.addEventListener('dragend', handleDragEnd);
-            card.addEventListener('dragover', handleDragOver);
-            card.addEventListener('dragleave', handleDragLeave);
-            card.addEventListener('drop', handleDrop);
+            // HTML5 Drag & Drop (desktop only)
+            if (!isTouchDevice) {
+                card.addEventListener('dragstart', handleDragStart);
+                card.addEventListener('dragend', handleDragEnd);
+                card.addEventListener('dragover', handleDragOver);
+                card.addEventListener('dragleave', handleDragLeave);
+                card.addEventListener('drop', handleDrop);
+            }
 
-            // Touch drag (mobile)
+            // Touch drag (mobile / touch devices)
             card.addEventListener('touchstart', handleTouchStart, { passive: false });
             card.addEventListener('touchmove', handleTouchMove, { passive: false });
             card.addEventListener('touchend', handleTouchEnd);
@@ -205,6 +231,52 @@
         } catch (e) {
             return deadlineStr;
         }
+    }
+
+    // ── Copy task text ──
+    function copyTaskText(text, buttonElement) {
+        if (!text) return;
+        // Modern clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                showCopiedFeedback(buttonElement);
+            }).catch(() => {
+                fallbackCopy(text, buttonElement);
+            });
+        } else {
+            fallbackCopy(text, buttonElement);
+        }
+    }
+
+    function fallbackCopy(text, buttonElement) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            showCopiedFeedback(buttonElement);
+        } catch (err) {
+            // silent fail
+        }
+        document.body.removeChild(textarea);
+    }
+
+    function showCopiedFeedback(button) {
+        button.classList.add('copied');
+        // Change SVG to checkmark temporarily
+        const originalHTML = button.innerHTML;
+        button.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 8L6.5 11.5L13 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        `;
+        setTimeout(() => {
+            button.classList.remove('copied');
+            button.innerHTML = originalHTML;
+        }, 1500);
     }
 
     // ── Task operations ──
@@ -414,8 +486,8 @@
         if (e.touches.length !== 1) return;
         const touch = e.touches[0];
         const target = e.target;
-        // Ignore if touching delete button or checkbox
-        if (target.closest('.btn-delete') || target.closest('.checkbox-wrap')) return;
+        // Ignore if touching action buttons or checkbox
+        if (target.closest('.btn-delete') || target.closest('.btn-copy') || target.closest('.checkbox-wrap')) return;
 
         const card = e.currentTarget;
         const taskId = card.getAttribute('data-id');
@@ -430,6 +502,8 @@
             task: task,
         };
         touchDragActive = false;
+
+        // Prevent default only after threshold; we'll add touch-action class later
     }
 
     function handleTouchMove(e) {
@@ -445,7 +519,9 @@
 
         if (!touchDragActive) {
             touchDragActive = true;
+            // Now we commit to drag – prevent default and lock touch-action
             e.preventDefault();
+            touchDragData.card.classList.add('no-touch-action');
             // Show clone
             const card = touchDragData.card;
             const rect = card.getBoundingClientRect();
@@ -492,7 +568,7 @@
         dragClone.style.display = 'none';
         dragClone.style.opacity = '0';
         if (touchDragData && touchDragData.card) {
-            touchDragData.card.classList.remove('dragging');
+            touchDragData.card.classList.remove('dragging', 'no-touch-action');
             touchDragData.card.style.opacity = '';
         }
         document.querySelectorAll('.task-card.drag-over, .task-card.drag-over-top, .task-card.drag-over-bottom')
@@ -539,7 +615,7 @@
             dragClone.style.left = (cardRect.left + offsetX) + 'px';
             dragClone.style.top = (cardRect.top + offsetY) + 'px';
             updateTouchDropTarget(touch.clientX, touch.clientY);
-            e.preventDefault(); // prevent scrolling
+            e.preventDefault();
         }
     }, { passive: false });
 
