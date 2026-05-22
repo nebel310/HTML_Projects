@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black & White</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app" id="app">
+        <div class="input-area" id="inputArea">
+            <div class="input-row">
+                <div class="input-text-wrap">
+                    <input
+                        type="text"
+                        class="input-text"
+                        id="taskInput"
+                        placeholder="Новая задача"
+                        autocomplete="off"
+                        maxlength="300"
+                    >
+                </div>
+                <input
+                    type="datetime-local"
+                    class="input-deadline"
+                    id="deadlineInput"
+                    title="Дедлайн (опционально)"
+                >
+                <button class="btn-add" id="btnAdd" title="Добавить задачу" aria-label="Добавить задачу">+</button>
+            </div>
+        </div>
+
+        <div class="task-list" id="taskList" role="list" aria-label="Список задач"></div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalText">
+            <p class="modal-text" id="modalText">Вы точно хотите удалить?</p>
+            <div class="modal-buttons">
+                <button class="btn-modal btn-modal-confirm" id="modalConfirm">Да</button>
+                <button class="btn-modal btn-modal-cancel" id="modalCancel">Нет</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="drag-clone" id="dragClone" aria-hidden="true" style="display:none;"></div>
+
+    <script src="scripts.js"></script>
+</body>
+</html>
