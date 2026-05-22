@@ -47,19 +47,46 @@ body {
     letter-spacing: -0.01em;
     display: flex;
     justify-content: center;
+    align-items: flex-start;
     padding: 0;
     overflow-x: hidden;
     transition: filter var(--transition-smooth);
+    position: relative;
 }
 
 body.modal-open {
     overflow: hidden;
 }
 
-/* Блокируем скролл во время перетаскивания */
 body.dragging-active {
     overflow: hidden;
     touch-action: none;
+}
+
+/* Кнопка входа */
+.btn-auth {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 14px 32px;
+    background: transparent;
+    border: 1px solid var(--white-30);
+    color: var(--white);
+    font-family: var(--font);
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    z-index: 10;
+    white-space: nowrap;
+}
+
+.btn-auth:hover {
+    border-color: var(--white-50);
+    background: var(--white-10);
 }
 
 .app {
@@ -224,7 +251,7 @@ body.modal-open .app {
 .task-list {
     display: flex;
     flex-direction: column;
-    gap: 0px;            /* зазор между карточками */
+    gap: 0px;
     min-height: 60px;
 }
 
@@ -243,13 +270,12 @@ body.modal-open .app {
     line-height: 1.6;
 }
 
-/* Карточка задачи */
 .task-card {
     display: flex;
     align-items: center;
     gap: 14px;
     padding: 16px 14px 16px 10px;
-    margin-bottom: 8px;          /* отступ снизу для визуального разделения */
+    margin-bottom: 8px;
     border: 1px solid var(--white-15);
     border-radius: var(--radius-md);
     background: var(--white-10);
@@ -259,7 +285,7 @@ body.modal-open .app {
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
-    touch-action: manipulation;  /* позволит браузеру обрабатывать скролл, но мы перехватим pointerdown */
+    touch-action: manipulation;
     will-change: transform;
 }
 
@@ -276,7 +302,6 @@ body.modal-open .app {
     cursor: grabbing;
 }
 
-/* Состояние перетаскивания */
 .task-card.dragging {
     opacity: 0.35;
     border-color: var(--white-40);
@@ -284,10 +309,9 @@ body.modal-open .app {
     transform: scale(0.98);
     cursor: grabbing;
     z-index: 5;
-    transition: none;           /* плавность не нужна, карточка двигается за пальцем */
+    transition: none;
 }
 
-/* Клон, который следует за указателем */
 .drag-clone {
     position: fixed;
     z-index: 200;
@@ -311,7 +335,6 @@ body.modal-open .app {
     display: none;
 }
 
-/* Индикатор места вставки (линия между карточками) */
 .drop-indicator {
     height: 2px;
     background: var(--white-50);
@@ -326,9 +349,8 @@ body.modal-open .app {
     opacity: 1;
 }
 
-/* Карточка, которая «расступается» для вставки */
 .task-card.drop-before {
-    margin-top: 10px;   /* создаём место для индикатора */
+    margin-top: 10px;
     transition: margin 0.15s ease;
 }
 
@@ -494,7 +516,6 @@ body.modal-open .app {
     font-weight: 400;
 }
 
-/* Кнопки действий (копирование и удаление) */
 .btn-copy,
 .btn-delete {
     flex: 0 0 auto;

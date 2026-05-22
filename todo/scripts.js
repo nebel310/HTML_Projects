@@ -1,5 +1,15 @@
 (function() {
-    // ── DOM references ──
+    const db = window.firebaseDb;
+    const auth = window.firebaseAuth;
+
+    if (!db || !auth) {
+        document.body.innerHTML = '<div style="color:white;text-align:center;padding:40px;">Ошибка инициализации Firebase. Проверь конфиг.</div>';
+        return;
+    }
+
+    // DOM элементы
+    const loginBtn = document.getElementById('loginBtn');
+    const appContainer = document.getElementById('app');
     const taskInput = document.getElementById('taskInput');
     const deadlineInput = document.getElementById('deadlineInput');
     const btnAdd = document.getElementById('btnAdd');
@@ -9,47 +19,138 @@
     const modalCancel = document.getElementById('modalCancel');
     const body = document.body;
 
-    // ── State ──
-    const STORAGE_KEY = 'bw-todo-tasks-v4';
+    // Состояние
     let tasks = [];
     let taskToDelete = null;
     let isModalOpen = false;
+    let currentUser = null;
+    let tasksUnsubscribe = null;
 
     // Drag state (pointer events)
     let dragState = null;
-    const DRAG_THRESHOLD = 5; // пикселей, чтобы отличить клик от перетаскивания
+    const DRAG_THRESHOLD = 5;
 
-    // ── Load / Save ──
-    function loadTasks() {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) {
-                    tasks = parsed.filter(t => t && typeof t.text === 'string' && t.text.trim());
-                    tasks.forEach(t => {
-                        if (!t.id) t.id = generateId();
-                        if (typeof t.completed !== 'boolean') t.completed = false;
-                        if (t.deadline === undefined) t.deadline = null;
-                    });
-                    return;
-                }
+    // ── Аутентификация ──
+    loginBtn.style.display = 'block'; // показываем кнопку по умолчанию (скроем после проверки)
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            currentUser = user;
+            console.log('Твой GitHub UID:', user.uid); // Скопируй этот UID для правил базы
+            loginBtn.style.display = 'none';
+            appContainer.style.display = '';
+            initRealtimeSync();
+        } else {
+            currentUser = null;
+            loginBtn.style.display = 'block';
+            appContainer.style.display = 'none';
+            if (tasksUnsubscribe) {
+                tasksUnsubscribe();
+                tasksUnsubscribe = null;
             }
-        } catch (e) {}
-        tasks = [];
+            tasks = [];
+            taskList.innerHTML = '';
+        }
+    });
+
+    loginBtn.addEventListener('click', () => {
+        const provider = new GithubAuthProvider();
+        signInWithPopup(auth, provider).catch(err => {
+            console.error('Ошибка входа:', err);
+            alert('Не удалось войти через GitHub. Попробуй позже.');
+        });
+    });
+
+    function initRealtimeSync() {
+        if (tasksUnsubscribe) tasksUnsubscribe();
+        const tasksRef = ref(db, 'tasks');
+        tasksUnsubscribe = onValue(tasksRef, (snapshot) => {
+            const data = snapshot.val();
+            tasks = data ? Object.keys(data).map(key => ({
+                ...data[key],
+                id: key
+            })) : [];
+            renderTasks();
+        });
+        taskInput.focus();
+        deadlineInput.value = '';
     }
 
-    function saveTasks() {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-        } catch (e) {}
+    // ── Работа с задачами через Firebase ──
+    function addTask() {
+        if (!currentUser) return;
+        const text = taskInput.value.trim();
+        if (!text) {
+            taskInput.focus();
+            taskInput.style.borderColor = 'rgba(255,255,255,0.5)';
+            setTimeout(() => { taskInput.style.borderColor = ''; }, 400);
+            return;
+        }
+
+        const deadlineVal = deadlineInput.value || null;
+        const newId = generateId();
+        const taskData = {
+            text,
+            deadline: deadlineVal,
+            completed: false,
+        };
+
+        set(ref(db, 'tasks/' + newId), taskData).then(() => {
+            taskInput.value = '';
+            deadlineInput.value = '';
+            taskInput.focus();
+        });
+    }
+
+    function toggleTask(taskId) {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+        set(ref(db, 'tasks/' + taskId + '/completed'), !task.completed);
+    }
+
+    function deleteTask(taskId) {
+        const card = taskList.querySelector(`[data-id="${taskId}"]`);
+        const performDelete = () => {
+            set(ref(db, 'tasks/' + taskId), null);
+        };
+        if (card) {
+            card.classList.add('task-exit');
+            card.addEventListener('animationend', performDelete, { once: true });
+        } else {
+            performDelete();
+        }
+    }
+
+    function reorderTask(draggedId, targetId, insertBefore) {
+        const draggedIdx = tasks.findIndex(t => t.id === draggedId);
+        const targetIdx = tasks.findIndex(t => t.id === targetId);
+        if (draggedIdx === -1 || targetIdx === -1) return;
+
+        const newTasks = [...tasks];
+        const [draggedTask] = newTasks.splice(draggedIdx, 1);
+        const newTargetIdx = newTasks.findIndex(t => t.id === targetId);
+        if (insertBefore) {
+            newTasks.splice(newTargetIdx, 0, draggedTask);
+        } else {
+            newTasks.splice(newTargetIdx + 1, 0, draggedTask);
+        }
+
+        const updates = {};
+        newTasks.forEach(t => {
+            updates['tasks/' + t.id] = {
+                text: t.text,
+                deadline: t.deadline,
+                completed: t.completed
+            };
+        });
+        update(ref(db), updates);
     }
 
     function generateId() {
-        return 't_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
+        return Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 6);
     }
 
-    // ── Render ──
+    // ── Рендер ──
     function renderTasks(animateNewId = null) {
         taskList.innerHTML = '';
 
@@ -177,6 +278,7 @@
         });
     }
 
+    // ── Вспомогательные функции ──
     function formatDeadline(deadlineStr) {
         if (!deadlineStr) return '';
         try {
@@ -199,105 +301,40 @@
         }
     }
 
-    // ── Copy task text ──
-    function copyTaskText(text, buttonElement) {
+    function copyTaskText(text, btn) {
         if (!text) return;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
+        const doCopy = () => {
             navigator.clipboard.writeText(text).then(() => {
-                showCopiedFeedback(buttonElement);
+                showCopiedFeedback(btn);
             }).catch(() => {
-                fallbackCopy(text, buttonElement);
+                // fallback
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                try { document.execCommand('copy'); showCopiedFeedback(btn); } catch (e) {}
+                document.body.removeChild(textarea);
             });
-        } else {
-            fallbackCopy(text, buttonElement);
-        }
+        };
+        doCopy();
     }
 
-    function fallbackCopy(text, buttonElement) {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        try {
-            document.execCommand('copy');
-            showCopiedFeedback(buttonElement);
-        } catch (err) {}
-        document.body.removeChild(textarea);
-    }
-
-    function showCopiedFeedback(button) {
-        button.classList.add('copied');
-        const originalHTML = button.innerHTML;
-        button.innerHTML = `
+    function showCopiedFeedback(btn) {
+        btn.classList.add('copied');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = `
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M3 8L6.5 11.5L13 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         `;
         setTimeout(() => {
-            button.classList.remove('copied');
-            button.innerHTML = originalHTML;
+            btn.classList.remove('copied');
+            btn.innerHTML = originalHTML;
         }, 1500);
     }
 
-    // ── Task operations ──
-    function addTask() {
-        const text = taskInput.value.trim();
-        if (!text) {
-            taskInput.focus();
-            taskInput.style.borderColor = 'rgba(255,255,255,0.5)';
-            setTimeout(() => { taskInput.style.borderColor = ''; }, 400);
-            return;
-        }
-
-        const deadlineVal = deadlineInput.value ? deadlineInput.value : null;
-        const newTask = {
-            id: generateId(),
-            text: text,
-            deadline: deadlineVal,
-            completed: false,
-        };
-
-        tasks.unshift(newTask);
-        saveTasks();
-        renderTasks(newTask.id);
-
-        taskInput.value = '';
-        deadlineInput.value = '';
-        taskInput.focus();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function toggleTask(taskId) {
-        const task = tasks.find(t => t.id === taskId);
-        if (task) {
-            task.completed = !task.completed;
-            saveTasks();
-            renderTasks();
-        }
-    }
-
-    function deleteTask(taskId) {
-        const index = tasks.findIndex(t => t.id === taskId);
-        if (index !== -1) {
-            const card = taskList.querySelector(`[data-id="${taskId}"]`);
-            if (card) {
-                card.classList.add('task-exit');
-                card.addEventListener('animationend', () => {
-                    tasks = tasks.filter(t => t.id !== taskId);
-                    saveTasks();
-                    renderTasks();
-                }, { once: true });
-            } else {
-                tasks = tasks.filter(t => t.id !== taskId);
-                saveTasks();
-                renderTasks();
-            }
-        }
-    }
-
-    // ── Modal ──
     function openDeleteModal(taskId) {
         taskToDelete = taskId;
         isModalOpen = true;
@@ -317,139 +354,89 @@
 
     function confirmDelete() {
         if (taskToDelete) {
-            const idToDelete = taskToDelete;
+            const id = taskToDelete;
             closeModal();
-            deleteTask(idToDelete);
+            deleteTask(id);
         }
     }
 
-    modalConfirm.addEventListener('click', confirmDelete);
-    modalCancel.addEventListener('click', closeModal);
-    modalOverlay.addEventListener('click', (e) => {
-        if (e.target === modalOverlay) closeModal();
-    });
-
-    // ── Keyboard shortcuts ──
-    document.addEventListener('keydown', (e) => {
-        if (isModalOpen) {
-            if (e.key === 'Escape') { e.preventDefault(); closeModal(); }
-            else if (e.key === 'Enter') { e.preventDefault(); confirmDelete(); }
-            return;
-        }
-
-        if (
-            e.key.length === 1 &&
-            !e.ctrlKey && !e.metaKey && !e.altKey &&
-            document.activeElement !== taskInput &&
-            document.activeElement !== deadlineInput &&
-            document.activeElement.tagName !== 'INPUT' &&
-            document.activeElement.tagName !== 'TEXTAREA' &&
-            document.activeElement.contentEditable !== 'true'
-        ) {
-            taskInput.focus();
-        }
-
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            e.preventDefault();
-            addTask();
-        }
-    });
-
-    // ── Pointer‑based Drag & Drop ──
+    // ── Drag & Drop (Pointer Events) ──
     function onPointerDown(e) {
-        // Игнорируем, если открыто модальное окно
         if (isModalOpen) return;
-        // Не начинаем перетаскивание на кнопках или чекбоксе
         if (e.target.closest('.btn-delete, .btn-copy, .checkbox-wrap')) return;
 
         const card = e.currentTarget;
         const taskId = card.getAttribute('data-id');
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) return;
+        if (!tasks.find(t => t.id === taskId)) return;
 
-        // Захватываем указатель, чтобы получать события даже за пределами элемента
         card.setPointerCapture(e.pointerId);
-
         dragState = {
-            card: card,
-            taskId: taskId,
-            task: task,
+            card,
+            taskId,
             startX: e.clientX,
             startY: e.clientY,
             pointerId: e.pointerId,
             clone: null,
             moved: false,
             initialRect: card.getBoundingClientRect(),
+            offsetX: 0,
+            offsetY: 0
         };
-
-        // Убираем стандартное поведение браузера (скролл, выделение)
         e.preventDefault();
         e.stopPropagation();
     }
 
     function onPointerMove(e) {
-        if (!dragState) return;
-        // Проверяем, что событие от того же указателя
-        if (e.pointerId !== dragState.pointerId) return;
-
+        if (!dragState || e.pointerId !== dragState.pointerId) return;
         const dx = e.clientX - dragState.startX;
         const dy = e.clientY - dragState.startY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
+        const distance = Math.hypot(dx, dy);
         if (!dragState.moved && distance < DRAG_THRESHOLD) return;
 
         if (!dragState.moved) {
-            // Активируем перетаскивание
             dragState.moved = true;
             body.classList.add('dragging-active');
             const card = dragState.card;
             card.classList.add('dragging');
-
             // Создаём клон
-            const clone = createDragClone(dragState.task.text);
+            const task = tasks.find(t => t.id === dragState.taskId);
+            const clone = document.createElement('div');
+            clone.className = 'drag-clone';
+            clone.textContent = task ? task.text : '';
+            document.body.appendChild(clone);
             dragState.clone = clone;
             const rect = card.getBoundingClientRect();
             clone.style.left = rect.left + 'px';
             clone.style.top = rect.top + 'px';
             clone.style.display = 'block';
-            // Фиксируем начальные смещения мыши относительно карточки
             dragState.offsetX = e.clientX - rect.left;
             dragState.offsetY = e.clientY - rect.top;
         }
 
         // Перемещаем клон
-        const clone = dragState.clone;
-        if (clone) {
-            const x = e.clientX - dragState.offsetX;
-            const y = e.clientY - dragState.offsetY;
-            clone.style.left = x + 'px';
-            clone.style.top = y + 'px';
+        if (dragState.clone) {
+            dragState.clone.style.left = (e.clientX - dragState.offsetX) + 'px';
+            dragState.clone.style.top = (e.clientY - dragState.offsetY) + 'px';
         }
-
-        // Обновляем индикатор вставки
-        updateDropIndicator(e.clientX, e.clientY, dragState.card);
+        updateDropTarget(e.clientX, e.clientY, dragState.card);
         e.preventDefault();
     }
 
     function onPointerUp(e) {
-        if (!dragState) return;
-
+        if (!dragState || e.pointerId !== dragState.pointerId) return;
         if (dragState.moved) {
-            // Завершаем перетаскивание
-            const targetCard = getDropTarget(e.clientX, e.clientY, dragState.card);
+            const targetCard = getDropTargetCard(e.clientX, e.clientY, dragState.card);
             if (targetCard && targetCard !== dragState.card) {
                 const targetId = targetCard.getAttribute('data-id');
                 const rect = targetCard.getBoundingClientRect();
                 const midY = rect.top + rect.height / 2;
-                const insertBefore = e.clientY < midY;
-                reorderTask(dragState.taskId, targetId, insertBefore);
+                reorderTask(dragState.taskId, targetId, e.clientY < midY);
             } else {
-                // Нет цели – просто перерисовываем без изменений
+                // вернём карточку на место (без изменений)
                 renderTasks();
             }
             cleanupDrag();
         } else {
-            // Это был клик, не перетаскивание – ничего не делаем
             cleanupDrag();
         }
     }
@@ -462,51 +449,30 @@
 
     function cleanupDrag() {
         if (!dragState) return;
-        // Удаляем клон
-        if (dragState.clone) {
-            dragState.clone.remove();
-        }
-        // Убираем классы с карточки
+        if (dragState.clone) dragState.clone.remove();
         const card = dragState.card;
         if (card) {
             card.classList.remove('dragging');
-            card.releasePointerCapture(dragState.pointerId);
+            try { card.releasePointerCapture(dragState.pointerId); } catch (e) {}
         }
-        // Убираем индикатор вставки
         removeDropIndicator();
         body.classList.remove('dragging-active');
         dragState = null;
     }
 
-    function createDragClone(text) {
-        const clone = document.createElement('div');
-        clone.className = 'drag-clone';
-        clone.textContent = text;
-        document.body.appendChild(clone);
-        return clone;
-    }
-
-    // Индикатор вставки — временный элемент, показывающий, куда встанет задача
     let dropIndicator = null;
 
-    function updateDropIndicator(clientX, clientY, draggedCard) {
-        const target = getDropTarget(clientX, clientY, draggedCard);
+    function updateDropTarget(clientX, clientY, draggedCard) {
+        const target = getDropTargetCard(clientX, clientY, draggedCard);
         removeDropIndicator();
-
         if (!target || target === draggedCard) return;
 
         const rect = target.getBoundingClientRect();
         const midY = rect.top + rect.height / 2;
         const insertBefore = clientY < midY;
 
-        // Создаём или переиспользуем индикатор
-        if (!dropIndicator) {
-            dropIndicator = document.createElement('div');
-            dropIndicator.className = 'drop-indicator';
-            taskList.appendChild(dropIndicator);
-        }
-
-        // Позиционируем индикатор
+        dropIndicator = document.createElement('div');
+        dropIndicator.className = 'drop-indicator active';
         if (insertBefore) {
             target.before(dropIndicator);
             target.classList.add('drop-before');
@@ -516,8 +482,6 @@
             target.classList.add('drop-after');
             target.classList.remove('drop-before');
         }
-
-        dropIndicator.classList.add('active');
     }
 
     function removeDropIndicator() {
@@ -525,60 +489,35 @@
             dropIndicator.remove();
             dropIndicator = null;
         }
-        // Убираем временные классы у всех карточек
         document.querySelectorAll('.task-card.drop-before, .task-card.drop-after').forEach(card => {
             card.classList.remove('drop-before', 'drop-after');
         });
     }
 
-    function getDropTarget(clientX, clientY, draggedCard) {
+    function getDropTargetCard(clientX, clientY, draggedCard) {
         const cards = document.querySelectorAll('.task-card:not(.dragging)');
-        let bestCard = null;
-        let bestDistance = Infinity;
-
+        let best = null;
+        let bestDist = Infinity;
         cards.forEach(card => {
             const rect = card.getBoundingClientRect();
-            // Считаем расстояние до центра карточки
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            const dist = Math.hypot(clientX - centerX, clientY - centerY);
-            if (dist < bestDistance && dist < 100) { // порог срабатывания
-                bestDistance = dist;
-                bestCard = card;
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            const dist = Math.hypot(clientX - cx, clientY - cy);
+            if (dist < bestDist && dist < 100) {
+                bestDist = dist;
+                best = card;
             }
         });
-
-        return bestCard;
+        return best;
     }
 
-    function reorderTask(draggedId, targetId, insertBefore) {
-        const draggedIdx = tasks.findIndex(t => t.id === draggedId);
-        const targetIdx = tasks.findIndex(t => t.id === targetId);
-        if (draggedIdx === -1 || targetIdx === -1) return;
-
-        const [draggedTask] = tasks.splice(draggedIdx, 1);
-        let newTargetIdx = tasks.findIndex(t => t.id === targetId);
-        if (insertBefore) tasks.splice(newTargetIdx, 0, draggedTask);
-        else tasks.splice(newTargetIdx + 1, 0, draggedTask);
-        saveTasks();
-        renderTasks();
-    }
-
-    // Глобальные слушатели для перемещения и отпускания
+    // Глобальные слушатели
     document.addEventListener('pointermove', onPointerMove);
     document.addEventListener('pointerup', onPointerUp);
     document.addEventListener('pointercancel', onPointerCancel);
-    // Потеря захвата (если браузер отменил)
-    document.addEventListener('lostpointercapture', (e) => {
-        if (dragState && dragState.card === e.target) {
-            cleanupDrag();
-        }
-    });
-
-    // Предотвращаем стандартное поведение браузера при перетаскивании картинок и т.п.
     document.addEventListener('dragstart', (e) => e.preventDefault());
 
-    // ── Event listeners ──
+    // ── Обработчики кнопок ──
     btnAdd.addEventListener('click', addTask);
     taskInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); addTask(); }
@@ -586,29 +525,36 @@
     deadlineInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); addTask(); }
     });
-    document.addEventListener('submit', (e) => e.preventDefault());
+    modalConfirm.addEventListener('click', confirmDelete);
+    modalCancel.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) closeModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (isModalOpen) {
+            if (e.key === 'Escape') { e.preventDefault(); closeModal(); }
+            else if (e.key === 'Enter') { e.preventDefault(); confirmDelete(); }
+            return;
+        }
+        if (
+            e.key.length === 1 &&
+            !e.ctrlKey && !e.metaKey && !e.altKey &&
+            document.activeElement !== taskInput &&
+            document.activeElement !== deadlineInput &&
+            document.activeElement.tagName !== 'INPUT' &&
+            document.activeElement.tagName !== 'TEXTAREA' &&
+            document.activeElement.contentEditable !== 'true'
+        ) {
+            taskInput.focus();
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            addTask();
+        }
+    });
+
     window.addEventListener('resize', () => {
         if (dragState) cleanupDrag();
     });
-
-    // ── Init ──
-    function init() {
-        loadTasks();
-        renderTasks();
-        taskInput.focus();
-        deadlineInput.value = '';
-    }
-
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) saveTasks();
-    });
-    window.addEventListener('beforeunload', () => saveTasks());
-
-    init();
-
-    console.log('%c Black & White %cTodo',
-        'background:#000;color:#fff;padding:6px 10px;font-family:sans-serif;font-size:14px;',
-        'background:#fff;color:#000;padding:6px 10px;font-family:sans-serif;font-size:14px;');
-    console.log('%cПеретаскивание теперь на Pointer Events – работает везде одинаково надёжно',
-        'color:rgba(255,255,255,0.5);font-family:sans-serif;font-size:12px;');
 })();
