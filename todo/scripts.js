@@ -1,9 +1,9 @@
-// Импорты Firebase (версия 12.13.0, та же что у тебя в конфиге)
+// Импорты Firebase (версия 12.13.0)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
 import { getDatabase, ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
-import { getAuth, signInWithPopup, GithubAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+import { getAuth, signInWithRedirect, GithubAuthProvider, onAuthStateChanged, getRedirectResult } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 
-// ⚠️ Твой конфиг (публичный, это нормально)
+// Твой конфиг (публичный)
 const firebaseConfig = {
     apiKey: "AIzaSyCX9IqXD7GBLt0Zmw1znFknpIUOzGZSYh8",
     authDomain: "expo-tasks-todo.firebaseapp.com",
@@ -44,6 +44,11 @@ const DRAG_THRESHOLD = 5;
 // ── Аутентификация ──
 loginBtn.style.display = 'block'; // показываем кнопку
 
+// Обработка результата редиректа (вызывается при возврате после входа)
+getRedirectResult(auth).catch(err => {
+    console.error('Ошибка после редиректа:', err);
+});
+
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUser = user;
@@ -66,7 +71,7 @@ onAuthStateChanged(auth, (user) => {
 
 loginBtn.addEventListener('click', () => {
     const provider = new GithubAuthProvider();
-    signInWithPopup(auth, provider).catch(err => {
+    signInWithRedirect(auth, provider).catch(err => {
         console.error('Ошибка входа:', err);
         alert('Не удалось войти через GitHub. Попробуй позже.');
     });
