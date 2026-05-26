@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2-аппроксимация TSP через MST</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            color: #ddd;
+            padding: 20px;
+        }
+        canvas {
+            background: #222;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            margin-bottom: 20px;
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: #2a2a2a;
+            padding: 12px 24px;
+            border-radius: 40px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        button {
+            background: #444;
+            border: none;
+            color: #eee;
+            font-size: 1.2rem;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        button:hover:not(:disabled) {
+            background: #5a5a5a;
+        }
+        button:disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+        .step-info {
+            font-size: 0.95rem;
+            color: #aaa;
+            min-width: 300px;
+            text-align: center;
+            font-weight: 300;
+            letter-spacing: 0.3px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="700" height="500"></canvas>
+    <div class="controls">
+        <button id="prevBtn" disabled title="Предыдущий шаг">◀</button>
+        <span class="step-info" id="stepDesc">Исходные точки</span>
+        <button id="nextBtn" title="Следующий шаг">▶</button>
+    </div>
+    <div style="margin-top:10px;color:#666;font-size:0.8rem;">
+        Алгоритм 2-аппроксимации: MST → эйлеров обход → сокращённый путь
+    </div>
+    <script>
+        (function() {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+
+            const points = [
+                {x: 120, y: 280}, // 0
+                {x: 350, y: 120}, // 1
+                {x: 580, y: 250}, // 2
+                {x: 220, y: 420}, // 3
+                {x: 480, y: 420}, // 4
+                {x: 140, y: 80},  // 5
+                {x: 520, y: 80},  // 6
+                {x: 300, y: 280}  // 7
+            ];
+            const n = points.length;
+
+            function dist(i, j) {
+                const dx = points[i].x - points[j].x;
+                const dy = points[i].y - points[j].y;
+                return Math.sqrt(dx*dx + dy*dy);
+            }
+
+            // MST Прима с сохранением порядка добавления рёбер
+            function computeMSTEdges() {
+                const visited = new Array(n).fill(false);
+                const mstEdges = [];
+                const start = 0;
+                visited[start] = true;
+                for (let e = 0; e < n-1; e++) {
+                    let minDist = Infinity;
+                    let bestEdge = null;
+                    for (let i = 0; i < n; i++) {
+                        if (!visited[i]) continue;
+                        for (let j = 0; j < n; j++) {
+                            if (visited[j]) continue;
+                            const d = dist(i, j);
+                            if (d < minDist) {
+                                minDist = d;
+                                bestEdge = [i, j];
+                            }
+                        }
+                    }
+                    if (bestEdge) {
+                        mstEdges.push(bestEdge);
+                        visited[bestEdge[1]] = true;
+                    }
+                }
+                return mstEdges;
+            }
+
+            const fullMstEdges = computeMSTEdges();
+
+            // Списки смежности для MST
+            const adj = Array.from({length: n}, () => []);
+            fullMstEdges.forEach(([u, v]) => {
+                adj[u].push(v);
+                adj[v].push(u);
+            });
+
+            // Эйлеров обход (DFS с возвратами)
+            function eulerTour(root) {
+                const tour = [];
+                function dfs(node, parent) {
+                    tour.push(node);
+                    for (const neighbor of adj[node]) {
+                        if (neighbor !== parent) {
+                            dfs(neighbor, node);
+                            tour.push(node);
+                        }
+                    }
+                }
+                dfs(root, -1);
+                return tour;
+            }
+
+            const eulerVertices = eulerTour(0);
+            const eulerSegments = [];
+            for (let i = 1; i < eulerVertices.length; i++) {
+                eulerSegments.push([eulerVertices[i-1], eulerVertices[i]]);
+            }
+
+            function shortcutPath(eulerSeq) {
+                const visited = new Set();
+                const path = [];
+                for (const v of eulerSeq) {
+                    if (!visited.has(v)) {
+                        visited.add(v);
+                        path.push(v);
+                    }
+                }
+                if (path.length > 0 && path[path.length-1] !== path[0]) {
+                    path.push(path[0]);
+                }
+                return path;
+            }
+
+            const finalPath = shortcutPath(eulerVertices);
+
+            // Шаги визуализации
+            const steps = [];
+            steps.push({
+                type: 'points',
+                description: 'Исходные точки',
+                mstEdges: [],
+                tourSegments: [],
+                finalPath: null
+            });
+
+            for (let i = 1; i <= fullMstEdges.length; i++) {
+                steps.push({
+                    type: 'mst',
+                    description: `MST: ребро ${i} из ${fullMstEdges.length}`,
+                    mstEdges: fullMstEdges.slice(0, i),
+                    tourSegments: [],
+                    finalPath: null
+                });
+            }
+
+            for (let i = 1; i <= eulerSegments.length; i++) {
+                steps.push({
+                    type: 'euler',
+                    description: `Обход: шаг ${i} из ${eulerSegments.length}`,
+                    mstEdges: fullMstEdges,
+                    tourSegments: eulerSegments.slice(0, i),
+                    finalPath: null
+                });
+            }
+
+            steps.push({
+                type: 'final',
+                description: 'Сокращённый маршрут TSP',
+                mstEdges: fullMstEdges,
+                tourSegments: eulerSegments,
+                finalPath: finalPath
+            });
+
+            let currentStep = 0;
+
+            // Поиск пути в MST между двумя вершинами (BFS)
+            function getMSTPath(u, v) {
+                const parent = new Array(n).fill(-1);
+                const queue = [u];
+                parent[u] = -2;
+                while (queue.length) {
+                    const cur = queue.shift();
+                    if (cur === v) break;
+                    for (const nxt of adj[cur]) {
+                        if (parent[nxt] === -1) {
+                            parent[nxt] = cur;
+                            queue.push(nxt);
+                        }
+                    }
+                }
+                const path = [];
+                let cur = v;
+                while (cur !== -2 && cur !== -1) {
+                    path.push(cur);
+                    cur = parent[cur];
+                }
+                path.reverse();
+                return path;
+            }
+
+            // Вычисление shortcut-рёбер (которые есть в finalPath, но отсутствуют в MST как неориентированные)
+            function findShortcutEdges(path) {
+                const mstSet = new Set();
+                fullMstEdges.forEach(([u, v]) => {
+                    mstSet.add(`${Math.min(u,v)}-${Math.max(u,v)}`);
+                });
+                const shortcuts = [];
+                for (let i = 0; i < path.length - 1; i++) {
+                    const u = path[i], v = path[i+1];
+                    const key = `${Math.min(u,v)}-${Math.max(u,v)}`;
+                    if (!mstSet.has(key)) {
+                        shortcuts.push([u, v]);
+                    }
+                }
+                return shortcuts;
+            }
+
+            const shortcutEdges = finalPath ? findShortcutEdges(finalPath) : [];
+
+            // Отрисовка
+            function drawStep(step) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Рёбра MST (синие) и подписи весов
+                if (step.mstEdges.length > 0) {
+                    ctx.strokeStyle = '#4fc3f7';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    step.mstEdges.forEach(([i, j]) => {
+                        ctx.moveTo(points[i].x, points[i].y);
+                        ctx.lineTo(points[j].x, points[j].y);
+                    });
+                    ctx.stroke();
+
+                    // Подписи длин рёбер (только когда MST полностью построен или хотя бы частично)
+                    ctx.font = '11px "Segoe UI"';
+                    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    step.mstEdges.forEach(([i, j]) => {
+                        const mx = (points[i].x + points[j].x) / 2;
+                        const my = (points[i].y + points[j].y) / 2;
+                        const w = Math.round(dist(i, j));
+                        // Лёгкая тень для читаемости
+                        ctx.shadowColor = '#000';
+                        ctx.shadowBlur = 3;
+                        ctx.fillText(w, mx, my);
+                        ctx.shadowColor = 'transparent';
+                        ctx.shadowBlur = 0;
+                    });
+                }
+
+                // Отрезки эйлерова обхода (пунктир)
+                if (step.tourSegments.length > 0) {
+                    ctx.strokeStyle = '#ffb74d';
+                    ctx.lineWidth = 1.8;
+                    ctx.setLineDash([6, 4]);
+                    ctx.beginPath();
+                    step.tourSegments.forEach(([i, j]) => {
+                        ctx.moveTo(points[i].x, points[i].y);
+                        ctx.lineTo(points[j].x, points[j].y);
+                    });
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                // Финальный путь TSP (зелёный)
+                if (step.finalPath && step.finalPath.length > 1) {
+                    ctx.strokeStyle = '#66bb6a';
+                    ctx.lineWidth = 3.5;
+                    ctx.shadowColor = '#66bb6a';
+                    ctx.shadowBlur = 8;
+                    ctx.beginPath();
+                    for (let i = 0; i < step.finalPath.length; i++) {
+                        const idx = step.finalPath[i];
+                        if (i === 0) ctx.moveTo(points[idx].x, points[idx].y);
+                        else ctx.lineTo(points[idx].x, points[idx].y);
+                    }
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                    ctx.shadowColor = 'transparent';
+
+                    // Для финального шага: показать shortcut рёбра и обходные пути
+                    if (step.type === 'final' && shortcutEdges.length > 0) {
+                        shortcutEdges.forEach(([u, v]) => {
+                            // Прямое ребро (уже нарисовано в общем зелёном) – подпишем его длину
+                            const mx = (points[u].x + points[v].x) / 2;
+                            const my = (points[u].y + points[v].y) / 2;
+                            const directLen = Math.round(dist(u, v));
+                            ctx.font = 'bold 12px "Segoe UI"';
+                            ctx.fillStyle = '#66bb6a';
+                            ctx.shadowColor = '#000';
+                            ctx.shadowBlur = 4;
+                            ctx.fillText(directLen, mx, my - 12);
+                            ctx.shadowColor = 'transparent';
+                            ctx.shadowBlur = 0;
+
+                            // Путь в MST между этими вершинами
+                            const mstPath = getMSTPath(u, v);
+                            if (mstPath.length > 1) {
+                                let sumMst = 0;
+                                const segments = [];
+                                for (let i = 0; i < mstPath.length - 1; i++) {
+                                    const a = mstPath[i], b = mstPath[i+1];
+                                    sumMst += dist(a, b);
+                                    segments.push([a, b]);
+                                }
+                                // Рисуем обходной путь красным пунктиром
+                                ctx.strokeStyle = '#ef5350';
+                                ctx.lineWidth = 2;
+                                ctx.setLineDash([5, 5]);
+                                ctx.beginPath();
+                                segments.forEach(([a, b]) => {
+                                    ctx.moveTo(points[a].x, points[a].y);
+                                    ctx.lineTo(points[b].x, points[b].y);
+                                });
+                                ctx.stroke();
+                                ctx.setLineDash([]);
+
+                                // Подпись общей длины обходного пути где-то рядом (например, над серединой первого сегмента)
+                                const midSeg = segments[Math.floor(segments.length/2)];
+                                const midX = (points[midSeg[0]].x + points[midSeg[1]].x) / 2;
+                                const midY = (points[midSeg[0]].y + points[midSeg[1]].y) / 2;
+                                ctx.font = '11px "Segoe UI"';
+                                ctx.fillStyle = '#ef5350';
+                                ctx.shadowColor = '#000';
+                                ctx.shadowBlur = 3;
+                                ctx.fillText(`≈${Math.round(sumMst)}`, midX, midY + 14);
+                                ctx.shadowColor = 'transparent';
+                                ctx.shadowBlur = 0;
+                            }
+                        });
+                    }
+                }
+
+                // Вершины и их номера
+                points.forEach((p, idx) => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 10, 0, 2*Math.PI);
+                    ctx.fillStyle = '#1a1a1a';
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2.5;
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 13px "Segoe UI"';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(idx, p.x, p.y);
+                });
+            }
+
+            function updateUI() {
+                const step = steps[currentStep];
+                document.getElementById('stepDesc').textContent = step.description;
+                document.getElementById('prevBtn').disabled = (currentStep === 0);
+                document.getElementById('nextBtn').disabled = (currentStep === steps.length - 1);
+                drawStep(step);
+            }
+
+            document.getElementById('prevBtn').addEventListener('click', () => {
+                if (currentStep > 0) {
+                    currentStep--;
+                    updateUI();
+                }
+            });
+
+            document.getElementById('nextBtn').addEventListener('click', () => {
+                if (currentStep < steps.length - 1) {
+                    currentStep++;
+                    updateUI();
+                }
+            });
+
+            updateUI();
+        })();
+    </script>
+</body>
+</html>
